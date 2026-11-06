@@ -114,7 +114,7 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .unit .bd span { background: rgba(11,19,27,.92); border: 1px solid var(--line); border-radius: 4px; font-size: 10px; padding: 0 4px; white-space: nowrap; }
 .unit .bd .st { border-color: #f0d36b; color: #f0d36b; } .unit .bd .dm { border-color: var(--foe); color: #ffb1a2; }
 .gear { position: relative; width: calc(56px * var(--s)); height: calc(78px * var(--s)); border-radius: 6px; border: 1px solid #000; cursor: pointer; flex: none; box-shadow: 0 2px 5px rgba(0,0,0,.4); }
-.gear.ex { filter: grayscale(.6) brightness(.7); }
+.gear.ex { transform: rotate(-9deg) scale(.96); filter: grayscale(.6) brightness(.7); } /* エグゾースト（タップ）したギアもユニットと同じように傾ける */
 .gear.sel { box-shadow: 0 0 0 3px var(--gold); }
 .hid { width: calc(56px * var(--s)); height: calc(78px * var(--s)); border-radius: 6px; flex: none; position: relative; }
 .hid.mine { cursor: pointer; outline: 2px dashed var(--you); outline-offset: 2px; }
@@ -273,12 +273,13 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .scols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(300px, .8fr); gap: 18px; min-height: 0; }
 .scol { background: var(--mat-2); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 .scol .lbl { margin: 0; font-size: 12px; }
-.scol .opts { grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; grid-auto-rows: minmax(0, 1fr); }
+.scol .opts { grid-template-columns: 1fr 1fr; flex: 1; min-height: 0; grid-template-rows: repeat(4, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); }
 .scol .opt { padding: 8px 10px; min-height: 0; overflow: hidden; }
 .scol .opts .opt { flex-direction: column; align-items: stretch; gap: 8px; }
 .scol .opts .opt .face { width: 100%; height: auto; flex: 1 1 0; min-height: 40px; background-size: cover; background-position: 50% 22%; border-radius: 8px; }
 .scol .opts .opt .face.rnd { font-size: 44px; }
 .scol .opts .opt > span:last-child { flex: none; }
+.scol .opts .opt > span:last-child { height: 56px; overflow: hidden; }
 .scol .opt span span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .scol .lvls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .scol .lvls .opt[data-level="ppo"] { grid-column: 1 / -1; border-color: rgba(82,182,234,.6); }
@@ -344,12 +345,110 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .pcard:hover { transform: translateY(-3px); }
 .pcard.on { box-shadow: 0 0 0 3px var(--gold), 0 6px 14px rgba(0,0,0,.6); }
 .pcard.dim { filter: brightness(.55) saturate(.6); cursor: default; }
-.pask { text-align: center; color: var(--gold); font-weight: 700; font-size: 13px; margin: 2px 0 6px; }
+.pask { text-align: center; color: #c9b3f3; font-weight: 700; font-size: 13px; margin: 2px 0 6px; }
 /* 右の欄：今使える能力（レジェンド能力など）は色を変えて目立たせる */
 .ablbl { font-size: 11px; letter-spacing: .12em; color: #b9a7ea; margin: 2px 0 -2px; }
 .act.ab { background: linear-gradient(90deg, rgba(160,122,217,.22), rgba(160,122,217,.06)); border: 1px solid rgba(160,122,217,.55); border-left: 4px solid var(--chaos); }
 .act.ab:hover { border-color: #c9b3f3; background: linear-gradient(90deg, rgba(160,122,217,.34), rgba(160,122,217,.1)); }
 .act.ab .as { color: #c9b8ea; }
+/* 右の欄の一番上に出す選択肢の箱 */
+.pickwrap { padding: 10px 12px; border-bottom: 1px solid var(--line); max-height: 44vh; overflow-y: auto; flex: none; }
+.side.picking .logbox { min-height: 40px; } .side { overflow: hidden; }
+.choicebox { border: 1px solid rgba(160,122,217,.6); border-left: 4px solid var(--chaos); border-radius: 12px; padding: 9px 11px 11px; background: linear-gradient(90deg, rgba(160,122,217,.2), rgba(160,122,217,.05)); animation: boxglow 1.6s ease-in-out infinite alternate; }
+@keyframes boxglow { from { box-shadow: 0 0 0 1px rgba(160,122,217,.15), 0 0 8px rgba(160,122,217,.12); } to { box-shadow: 0 0 0 3px rgba(160,122,217,.3), 0 0 22px rgba(160,122,217,.3); } }
+@media (prefers-reduced-motion: reduce) { .choicebox { animation: none; } }
+.choicebox .ph { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.choicebox .ph .tag { background: var(--chaos); color: #fff; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; white-space: nowrap; }
+.choicebox .ph b { font-size: 14.5px; flex: 1; line-height: 1.3; }
+.choicebox .ph button { background: none; border: 1px solid var(--line); color: var(--ink-dim); border-radius: 8px; font-size: 12px; padding: 2px 8px; cursor: pointer; }
+.choicebox .pbtns { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.choicebox .pbtns button { text-align: left; background: rgba(160,122,217,.14); border: 1px solid rgba(160,122,217,.6); border-radius: 9px; padding: 8px 11px; cursor: pointer; font-size: 13px; color: var(--ink); }
+.choicebox .pbtns button:hover { background: rgba(160,122,217,.32); border-color: #c9b3f3; }
+.choicebox .pbtns button.none { border-color: var(--line); color: var(--ink-dim); }
+.choicebox .pcard { width: 76px; }
+.choicebox .pfoot { display: flex; gap: 8px; margin-top: 8px; justify-content: flex-end; }
+.cgroup + .cgroup { margin-top: 8px; }
+.cgh { font-size: 12px; font-weight: 700; color: #c9b3f3; margin-bottom: 4px; }
+.cgh small { font-weight: 500; color: var(--ink-dim); margin-left: 8px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { background: rgba(160,122,217,.14); border: 1px solid rgba(160,122,217,.6); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 13px; color: var(--ink); }
+.chips button:hover { background: rgba(160,122,217,.32); border-color: #c9b3f3; }
+/* 選択肢にマウスを乗せた時：その手の対象（カード）と場所をオレンジに光らせ、「対象」の札を付ける */
+.hovtg { outline: 4px solid #ff9f43 !important; outline-offset: 3px; box-shadow: 0 0 22px rgba(255,159,67,.85) !important; z-index: 5; }
+.hovtg::before { content: "対象"; position: absolute; left: 50%; top: -14px; transform: translateX(-50%); background: #ff9f43; color: #1b1407; font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px; white-space: nowrap; z-index: 6; pointer-events: none; }
+.hovloc { box-shadow: 0 0 0 4px #ff9f43 inset, 0 0 26px rgba(255,159,67,.7) !important; border-color: #ff9f43 !important; }
+.hovloc .bfname::after, .zone.hovloc::before { content: "ここ"; display: inline-block; margin-left: 8px; background: #ff9f43; color: #1b1407; font: 700 11px/1 var(--f-body); padding: 3px 8px; border-radius: 99px; vertical-align: 2px; }
+.zone.hovloc::before { position: absolute; left: 10px; top: 6px; margin: 0; z-index: 3; }
+.hid.hovtg, .gear.hovtg, .card.hovtg { position: relative; }
+/* チェーン（解決を待っている呪文） */
+.chainbox { margin: 8px 12px 0; border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: rgba(13,22,32,.6); flex: none; }
+.chh { font-size: 11px; letter-spacing: .12em; color: var(--ink-dim); margin-bottom: 6px; }
+.chrow { display: flex; gap: 9px; align-items: center; padding: 4px 6px; border-radius: 8px; border-left: 3px solid var(--line); }
+.chrow + .chrow { margin-top: 4px; opacity: .8; }
+.chrow.y { border-left-color: var(--you); } .chrow.f { border-left-color: var(--foe); }
+.chimg { width: 38px; height: 53px; border-radius: 4px; flex: none; border: 1px solid #000; }
+.chn { font-size: 13px; } .chn b { font-weight: 700; }
+.chrow.y .chn b { color: var(--you); } .chrow.f .chn b { color: var(--foe); }
+.cht { font-size: 11.5px; color: var(--ink-dim); }
+.chtop { display: inline-block; font-size: 10px; font-weight: 700; background: var(--ink); color: var(--mat); padding: 1px 6px; border-radius: 99px; margin-right: 6px; vertical-align: 1px; }
+.chmsg { font-size: 12px; color: #cfe7f5; margin-top: 7px; line-height: 1.5; }
+/* 右の欄が混んでいる時（選択中・チェーン中）は、カードの説明欄を縮めてボタンを必ず見せる */
+.side.tight .detail { min-height: 0; flex: 0 1 auto; overflow: hidden; }
+.side.tight .actsec { flex: none; } .side.tight .logbox { flex: 1 1 0; min-height: 0; }
+/* チェーンの矢印 */
+#arrows { position: fixed; inset: 0; width: 100vw; height: 100vh; pointer-events: none; z-index: 45; }
+#arrows .arr { fill: none; stroke-width: 3.5; stroke-linecap: round; filter: drop-shadow(0 0 4px rgba(0,0,0,.8)); stroke-dasharray: 10 6; animation: arrflow 1s linear infinite; }
+#arrows .arr-y { stroke: var(--you); } #arrows .arr-f { stroke: var(--foe); }
+#arrows .ah-y { fill: var(--you); } #arrows .ah-f { fill: var(--foe); }
+@keyframes arrflow { to { stroke-dashoffset: -16; } }
+@media (prefers-reduced-motion: reduce) { #arrows .arr { animation: none; } }
+.chaintg.cy { outline: 3px solid var(--you); outline-offset: 2px; }
+.chaintg.cf { outline: 3px solid var(--foe); outline-offset: 2px; }
+/* チェーンの番号札 */
+.chb { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 3px; border-radius: 99px; font: 700 13px/1 var(--f-body); color: #fff; margin-right: 5px; vertical-align: 1px; }
+.chb.y { background: var(--you); } .chb.f { background: var(--foe); }
+.chaintg[data-chb]::after { content: attr(data-chb); position: absolute; right: -8px; top: -10px; min-width: 24px; height: 24px; padding: 0 4px; border-radius: 99px; display: grid; place-items: center; font: 700 15px/1 var(--f-body); color: #fff; z-index: 7; box-shadow: 0 2px 6px rgba(0,0,0,.6); pointer-events: none; }
+.chaintg.cy[data-chb]::after { background: var(--you); } .chaintg.cf[data-chb]::after { background: var(--foe); }
+.hid.chaintg, .gear.chaintg { position: relative; }
+.chsw { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: -2px 0 6px; font-size: 11px; color: var(--ink-dim); }
+.chsw span { margin-right: 2px; }
+.chsw button { background: none; border: 1px solid var(--line); color: var(--ink-dim); border-radius: 6px; padding: 2px 7px; font-size: 11px; cursor: pointer; }
+.chsw button.on { border-color: var(--gold); color: var(--gold); }
+.chrow { cursor: default; }
+.chrow:hover { background: rgba(255,255,255,.04); }
+/* D：対象のカードを並べる */
+.drow { flex-direction: column; align-items: stretch; gap: 4px; }
+.dsrc { display: flex; gap: 9px; align-items: center; }
+.darrow { font-size: 11px; font-weight: 700; padding-left: 12px; } .darrow.y { color: var(--you); } .darrow.f { color: var(--foe); }
+.dtgs { display: flex; flex-direction: column; gap: 4px; padding-left: 12px; }
+.dtg { display: flex; gap: 8px; align-items: center; font-size: 12.5px; }
+.dtg small { display: block; font-size: 11px; color: var(--ink-dim); }
+.dtg .chimg { width: 32px; height: 45px; border: 2px solid; } .dtg .chimg.y { border-color: var(--you); } .dtg .chimg.f { border-color: var(--foe); }
+/* E：チェーン中は対象以外を暗くする */
+.board.spot .unit:not(.chaintg), .board.spot .gear:not(.chaintg), .board.spot .hid:not(.chaintg) { filter: brightness(.35) saturate(.4); }
+.board.spot .bfban { filter: brightness(.5); }
+/* 行にマウス：その行を目立たせる */
+.chrow.hov { background: rgba(255,159,67,.12); }
+.chainbox .chrow.hovtg { outline: 2px solid #ff9f43; outline-offset: 1px; }
+.chainbox .chrow.hovtg::before { display: none; }
+.drow.mini { padding: 3px 8px; font-size: 12px; } .drow.mini .chn { font-size: 12px; }
+.chlist { max-height: 32vh; overflow-y: auto; }
+.drow.mini { cursor: pointer; }
+.drow.mini:hover { background: rgba(255,255,255,.07); }
+.chev { color: var(--ink-dim); margin-right: 4px; font-size: 11px; }
+.tiny { display: inline-block; width: 16px; height: 22px; border-radius: 2px; vertical-align: -6px; margin: 0 4px 0 2px; border: 1px solid #000; }
+.drow { position: relative; }
+.chfold { position: absolute; right: 6px; top: 4px; background: none; border: 1px solid var(--line); color: var(--ink-dim); border-radius: 6px; font-size: 10.5px; padding: 1px 6px; cursor: pointer; }
+/* Tier の札（デッキの絵の左上） */
+.scol .opts .opt .face { position: relative; }
+.tier { position: absolute; right: 8px; top: 8px; font: 700 15px/1 var(--f-num); font-style: normal; padding: 5px 9px 4px; border-radius: 7px; letter-spacing: .04em; box-shadow: 0 2px 8px rgba(0,0,0,.6); }
+.tier::before { content: "Tier "; font-size: 11px; }
+.tier.tS { background: linear-gradient(135deg, #f6d77a, #d9a93c); color: #2a1c04; }
+.tier.tA { background: #a07ad9; color: #fff; }
+.tier.tB { background: #4f8fe6; color: #fff; }
+.tier.tC { background: #6b7c8c; color: #fff; }
+.tier.tD { background: #3a4652; color: #cfd8e0; }
+.scol .tierkey { font-size: 11px; color: var(--ink-dim); margin-top: -4px; }
 /* リプレイ */
 .handrow.mini { flex: none; min-height: 0; padding: 4px 4px 4px; gap: 6px; }
 .handrow.mini > .card { width: calc(64px * var(--s)); height: calc(90px * var(--s)); border-radius: 6px; cursor: default; }
@@ -2807,13 +2906,15 @@ const REC_T = ['play', 'hide', 'equip', 'deserter', 'kennen', 'lg', 'lgemp', 'ue
 let RECENT = [];
 // 公開で見た相手の札のうち、画面では裏向きに戻す札（相手が同じ名前の札を手札から使った時。どの1枚を使ったかは本来わからないため）
 let SEEN_MASK = [];
+let HIDTRASH = []; // 捨て札になった伏せ札（画面の真ん中で知らせる）
 // 手を実行する（必ずここを通す）。カードを出した手などは RECENT に残す
 function act(a) {
   // 相手が手札から札を出した：同じ名前の「公開」札を1枚裏向きに戻す（出したのが公開札そのものなら何もしない）
-  let usedKey = null, usedSeen = false, rk0 = S.reveal ? revealKey(S.reveal) : null;
-  if (!RP && E.actor(S) === FOE && (a.t === 'play' || a.t === 'hide') && S.cards[a.uid] && S.cards[a.uid].zone === 'hand') {
-    usedKey = S.cards[a.uid].key; usedSeen = (S.players[YOU].seen || []).includes(a.uid) && !SEEN_MASK.includes(a.uid);
-  }
+  const rk0 = S.reveal ? revealKey(S.reveal) : null;
+  const foeHand0 = RP ? [] : S.players[FOE].hand.slice();
+  const hid0 = []; for (const b of S.bfs) for (const x of b.hidden) hid0.push(x);
+  const seenNow = () => (S.players[YOU].seen || []).filter(u => !SEEN_MASK.includes(u));
+  const seen0 = RP ? [] : seenNow().slice();
   if (GREC && !RP && !NP && !GREC.done) { const i = recIndex(a); if (i >= 0) GREC.acts.push(i); else GREC.bad = true; }
   const p = E.actor(S); let item = null, snap = null;
   if (REC_T.includes(a.t)) {
@@ -2824,10 +2925,21 @@ function act(a) {
   }
   E.apply(S, a);
   if (S.reveal && revealKey(S.reveal) !== rk0) SEEN_MASK = []; // 新しく公開された：今の手札は全部わかっている
-  if (usedKey && !usedSeen) {
-    const seen = S.players[YOU].seen || [];
-    const u = S.players[FOE].hand.find(x => seen.includes(x) && !SEEN_MASK.includes(x) && S.cards[x].key === usedKey);
-    if (u) SEEN_MASK.push(u);
+  else if (!RP) {
+    const PUBZ = ['board', 'trash', 'banish', 'chain', 'champ'];
+    for (const u of foeHand0) {
+      if (S.players[FOE].hand.includes(u)) continue;
+      const z = S.cards[u] && S.cards[u].zone;
+      if (!PUBZ.includes(z)) { SEEN_MASK.push(...seenNow()); break; } // 裏のまま出ていった
+      if (seen0.includes(u)) continue; // 公開札そのものが出ていった
+      const k = S.cards[u].key, v = seenNow().find(x => S.players[FOE].hand.includes(x) && S.cards[x].key === k);
+      if (v) SEEN_MASK.push(v);
+    }
+  }
+  // 伏せ札が使われずに捨て札へ行った：何の札だったかを知らせる（捨て札は誰でも見られる）
+  if (!RP) for (const x of hid0) if (S.cards[x] && S.cards[x].zone === 'trash') {
+    const it = { p: S.cards[x].owner, key: S.cards[x].key, text: `伏せ札（${D(x).name}）が使われずに捨て札へ`, tap: [], rec: [], pd: 0, turn: S.turnNo };
+    RECENT.unshift(it); if (RECENT.length > 8) RECENT.length = 8; HIDTRASH.push(it);
   }
   if (item) {
     const now = S.players[p].runes;
@@ -2860,15 +2972,24 @@ function recentHTML() {
 }
 // 相手がカードを出したら、盤面の真ん中に大きく出す
 let toastTimer = null;
+// 大きな表示は順番待ちにして、1つずつ（最低1.3秒）出す。たまり過ぎたら古いものから捨てる
+let toastQ = [], toastBusy = false;
 function showToast(it) {
   if (!it || RP) return;
-  let t = document.getElementById('playtoast'); if (!t) { t = document.createElement('div'); t.id = 'playtoast'; document.body.appendChild(t); }
-  const b = document.querySelector('.board'), r = b ? b.getBoundingClientRect() : { left: 0, width: innerWidth };
-  t.style.left = (r.left + r.width / 2) + 'px'; t.style.top = '46%';
+  toastQ.push(it); if (toastQ.length > 3) toastQ.shift();
+  if (!toastBusy) nextToast();
+}
+function nextToast() {
+  const t0 = document.getElementById("playtoast");
+  if (!toastQ.length) { toastBusy = false; if (t0) t0.classList.remove("show"); return; }
+  toastBusy = true; const it = toastQ.shift();
+  let t = t0; if (!t) { t = document.createElement("div"); t.id = "playtoast"; document.body.appendChild(t); }
+  const b = document.querySelector(".board"), r = b ? b.getBoundingClientRect() : { left: 0, width: innerWidth };
+  t.style.left = (r.left + r.width / 2) + "px"; t.style.top = "46%";
   const pay = payText(it.tap, it.rec, it.pd);
-  t.innerHTML = `<div class="tc cimg ${it.key ? '' : 'hidcard'}" ${it.key ? bg(it.key) : ''}></div><div class="tt">${esc(NM(it.p))}：${esc(it.text)}${pay ? `<small class="rpay" style="justify-content:center">ルーン：${pay}</small>` : ''}</div>`;
-  t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1900);
+  t.innerHTML = `<div class="tc cimg ${it.key ? "" : "hidcard"}" ${it.key ? bg(it.key) : ""}></div><div class="tt">${esc(NM(it.p))}：${esc(it.text)}${pay ? `<small class="rpay" style="justify-content:center">ルーン：${pay}</small>` : ""}</div>`;
+  t.classList.remove("show"); void t.offsetWidth; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(nextToast, toastQ.length ? 1300 : 1900);
 }
 // 支払いの見込み：このカードを出したら、どのルーンがタップされ／山札に戻るか（盤面のコピーで試す）
 function payPreview(uid, A) {
@@ -3086,11 +3207,12 @@ function onGameOver() {
   if (trainer && training) trainer.postMessage({ t: 'human', human: all });
 }
 function doAction(a) {
+  HIDTRASH = [];
   ccSel = null;
   if (NP && NP.game) { if (!netDo(a)) { render(); return; } } else { act(a); recordFeatures(); }
   sel = { units: [], card: null, info: sel.info && S.cards[sel.info] && S.cards[sel.info].zone === 'board' ? sel.info : null, picks: [] };
   if (S.over) onGameOver();
-  save(); render(); tick();
+  save(); render(); HIDTRASH.forEach(x => showToast(x)); HIDTRASH = []; tick();
 }
 function tick() {
   if (RP || !S || S.over || busy || view !== 'game') return;
@@ -3102,7 +3224,7 @@ function tick() {
       busy = false;
       let it = null;
       if (S && !S.over && E.actor(S) === FOE) { it = act(a); recordFeatures(); if (S.over) onGameOver(); save(); }
-      render(); showToast(it); tick();
+      render(); HIDTRASH.forEach(x => showToast(x)); showToast(it); HIDTRASH = []; tick();
     }, Math.max(0, 450 - (Date.now() - t0))));
     return;
   }
@@ -3118,10 +3240,11 @@ function render() {
   if (view === 'setup' || !S) { app.innerHTML = setupHTML() + (overlay === 'lab' ? labHTML() : '') + (overlay === 'net' ? netHTML() : ''); bindSetup(); if (overlay === 'lab') bindLab(); if (overlay === 'net') bindNet(); return; }
   const A = myAct() ? legal() : [];
   hideZoom();
+  const keepScroll = [".chlist", ".pickwrap"].map(s => { const el = document.querySelector(s); return [s, el ? el.scrollTop : 0]; });
   TG = nextTargets(A);
+  const PICK = view === 'game' && S ? pickBarHTML(A) : '';
   app.innerHTML = `<div class="app">
     <main class="board">
-      ${pickBarHTML(A)}
       <div id="top">${topHTML()}</div>
       ${pbarHTML(FOE)}
       ${RP ? `<div class="handrow mini"><span class="ztag">${esc(NM(FOE))}の手札（${S.players[FOE].hand.length}）</span>${miniHand(FOE)}</div>` : ''}
@@ -3131,10 +3254,11 @@ function render() {
       ${pbarHTML(YOU)}
       <div class="handrow"><span class="ztag">${RP ? esc(NM(YOU)) + 'の' : ''}手札（${S.players[YOU].hand.length}）・マウスを乗せると拡大</span>${handHTML(A)}</div>
     </main>
-    <aside class="side">
+    <aside class="side ${PICK ? 'picking' : ''} ${PICK || (S && S.chain.length) ? 'tight' : ''}">
       ${netbarHTML()}
       ${statusHTML()}
-      ${recentHTML()}
+      ${chainHTML()}
+      ${PICK ? `<div class="pickwrap">${PICK}</div>` : recentHTML()}
       <div class="detail" id="detail">${detailHTML(hover || sel.info || sel.card || (sel.units.length === 1 ? sel.units[0] : null) || chainTop())}</div>
       <div class="actsec">${RP ? rpHTML() : actsHTML(A)}</div>
       <div class="loghead">ログ</div>
@@ -3149,7 +3273,9 @@ function render() {
     ${overlay === 'rules' ? rulesHTML() : ''}`;
   bind(A);
   if (sel.card && myAct()) { const pp = payPreview(sel.card, A); markPay(pp); const d = document.getElementById('detail'); if (d && !hover) d.innerHTML += payLine(pp); }
-  fitBoard(); placeBar();
+  for (const [s, y] of keepScroll) { const el = document.querySelector(s); if (el) el.scrollTop = y; }
+  if (chainFocus) { const row = document.querySelector(`.chlist [data-chuid="${chainFocus}"]`); const lst = document.querySelector(".chlist"); if (row && lst) { const rr = row.getBoundingClientRect(), lr = lst.getBoundingClientRect(); if (rr.bottom > lr.bottom) lst.scrollTop += rr.bottom - lr.bottom + 4; else if (rr.top < lr.top) lst.scrollTop -= lr.top - rr.top + 4; } chainFocus = null; }
+  fitBoard(); placeBar(); drawArrows();
   const lb = document.getElementById('logbox'); if (lb) lb.scrollTop = lb.scrollHeight;
   if (overlay === 'lab') bindLab();
 }
@@ -3181,7 +3307,7 @@ function pbarHTML(p) {
   const hand = p === FOE && !RP ? `<div class="backs" title="手札 ${pl.hand.length}枚">${pl.hand.map(u => seenSet.has(u) ? `<span class="back seen cimg" ${bg(S.cards[u].key)} data-zkey="${S.cards[u].key}" title="公開済み：${esc(D(u).name)}"></span>` : '<span class="back"></span>').join('')}</div>` : '';
   const champ = pl.champ.length ? `<button class="zbtn" data-info="${pl.champ[0]}">チャンピオン待機：${esc(D(pl.champ[0]).name)}</button>` : 'チャンピオンは場か手札';
   return `<div class="pbar ${p === YOU ? 'you' : 'foe'}">
-    <div class="lgimg ${pl.legend.emp ? 'emp' : ''}" style="background-image:url('${IMG(pl.legend.key)}')" data-legend="${p}" data-zkey="${pl.legend.key}" title="${esc(lg.name)}"></div>
+    <div class="lgimg ${pl.legend.emp ? 'emp' : ''}" style="background-image:url('${IMG(pl.legend.key)}');background-position:${facePos(pl.legend.key, 1, 1.6)}" data-legend="${p}" data-zkey="${pl.legend.key}" title="${esc(lg.name)}"></div>
     <div class="pname"><b>${esc(NM(p))}・${esc(lg.name)}<span class="ord ${S.first === p ? 'first' : ''}">${S.first === p ? '先攻' : '後攻'}</span></b><span>${champ}</span></div>
     <div class="track"><div class="score">${pl.points}<small>/${E.VICTORY}</small></div><div class="pips">${pips}</div>${hand}</div>
     <div class="pmeta"><div class="rgrps">${pl.pool > 0 ? `<span class="rg pool" title="ルーンプールに浮いているエネルギー。このターン中は次のカードに使え、ターン終了時に消えます"><span class="rn">浮いているエネルギー</span><span class="rc">${pl.pool}</span></span>` : ''}${runes || '<span class="rg"><span class="rn">ルーンなし</span></span>'}</div><span>使えるルーン ${ready}/${pl.runes.length}・ルーン山札（${deckLeft}）・山札 ${pl.deck.length}・手札 ${pl.hand.length}・<button class="zbtn" data-trash="${p}">捨て札 ${pl.trash.length}</button></span></div>
@@ -3262,9 +3388,10 @@ function actsHTML(A) {
   if (!myAct()) return `<div class="hint">${E.actor(S) === FOE ? (NP ? esc(NM(FOE)) + 'が考えています…' : 'AIが行動中です…') : '…'}</div><div class="row"><button class="primary" disabled>${NP ? esc(NM(FOE)) : 'AI'}の番</button></div>`;
   const barOn = !!pickBarHTML(A);
   const isAb = (a) => ['kennen', 'lg', 'lgemp', 'uemp', 'akali', 'orb', 'deserter'].includes(a.t) || (a.t === 'play' && ['trash', 'hidden', 'champ'].includes(a.zone));
-  const btns = (list) => !list.length ? '' : barOn ? '<div class="barnote">← 盤面に出た<b>金色の枠</b>から選んでください（水色に光っている所をクリックしても選べます）</div>' : (list.some(isAb) && !sel.card && !sel.units.length && !sel.info && !S.choice ? '<div class="ablbl">今使える能力</div>' : '') + `<div class="acts">${list.map(a => `<button class="act ${isAb(a) ? 'ab' : ''}" data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>`;
+  const btns = (list) => !list.length ? '' : barOn ? '' : (list.some(isAb) && !sel.card && !sel.units.length && !sel.info && !S.choice ? '<div class="ablbl">今使える能力</div>' : '') + `<div class="acts">${list.map(a => `<button class="act ${isAb(a) ? 'ab' : ''}" data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>`;
   if (S.choice && S.choice.p === YOU) {
     if (S.choice.kind === 'mull') return '<div class="hint">マリガンを選んでください</div>';
+    if (barOn) return '<div class="hint">↑ 上の金色の枠で選んでください。</div>';
     const clr = sel.picks.length ? `<div class="row"><button class="secondary" data-k="clear">選び直す</button></div>` : '';
     return `<b>${esc(E.choicePrompt(S))}</b>${tgtHint()}${btns(pickCands(A))}${clr}`;
   }
@@ -3273,7 +3400,7 @@ function actsHTML(A) {
   const cands = pickCands(list);
   const passA = A.find(a => a.t === 'pass' || a.t === 'end');
   const clr = (sel.units.length || sel.card || sel.info || sel.picks.length) ? `<button class="secondary" data-k="clear">選択解除</button>` : '';
-  return head + (barOn ? "" : tgtHint()) + btns(cands) + `<div class="row">${clr}${passA ? `<button class="primary" data-act="${A.indexOf(passA)}">${passA.t === 'end' ? 'ターン終了<small style="font-weight:500;opacity:.7;margin-left:6px">（スペースキー）</small>' : 'パス'}</button>` : ''}</div>`;
+  return (barOn ? '' : head + tgtHint()) + btns(cands) + `<div class="row">${clr}${passA ? `<button class="primary" data-act="${A.indexOf(passA)}">${passA.t === 'end' ? 'ターン終了<small style="font-weight:500;opacity:.7;margin-left:6px">（スペースキー）</small>' : 'パス'}</button>` : ''}</div>`;
 }
 // ---- 手札の公開（Scuttle Crab など）のお知らせ：同じ公開は1回だけ出す ----
 let revealShown = null;
@@ -3348,8 +3475,8 @@ function cardChoiceBody(A) {
 function pickBarHTML(A) {
   if (RP || !myAct() || overlay || S.over) return '';
   const btns = (list) => list.length ? `<div class="pbtns">${list.map(a => `<button data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>` : '';
-  // anchored：クリックしたカードのそばに出す吹き出し
-  const bar = (tag, head, body, foot, anchored) => `<div class="pickbar ${anchored ? 'anch' : barBottom ? 'bottom' : ''}" data-stop="1"><div class="ph"><span class="tag">${tag}</span><b>${head}</b>${anchored ? '<button data-k="clear" title="閉じる">✕</button>' : `<button data-k="barpos">${barBottom ? '↑ 上へ' : '↓ 下へ'}</button>`}</div>${body}${foot ? `<div class="pfoot">${foot}</div>` : ''}</div>`;
+  // 右の欄の一番上に出す箱（盤面には重ねない）
+  const bar = (tag, head, body, foot, closable) => `<div class="choicebox"><div class="ph"><span class="tag">${tag}</span><b>${head}</b>${closable ? '<button data-k="clear" title="選ぶのをやめる">✕</button>' : ''}</div>${body}${foot ? `<div class="pfoot">${foot}</div>` : ''}</div>`;
   if (S.choice && S.choice.p === YOU) {
     if (S.choice.kind === 'mull') return '';
     if (CARD_CHOICE.includes(S.choice.kind)) return bar('選んでください', esc(E.choicePrompt(S)), cardChoiceBody(A), '');
@@ -3360,10 +3487,134 @@ function pickBarHTML(A) {
   if (!(sel.card || sel.units.length || sel.info)) return '';
   const { head, list } = ctxList(A), cands = pickCands(list);
   const hint = (head.match(/<div class="hint">[\s\S]*$/) || [''])[0];
-  return bar(cands.length ? 'どうする？' : '選択中', head.replace(/<div class="hint">[\s\S]*$/, '').replace(/<\/?b>/g, ''), hint + tgtHint() + btns(cands), '', true);
+  const title = head.replace(/<div class="hint">[\s\S]*$/, '').replace(/<\/?b>/g, '');
+  return bar(cands.length ? 'どうする？' : '選択中', title, hint + groupBtns(cands, A) + (cands.length ? '<div class="hint" style="margin-top:6px">盤面の水色に光っている所をクリックしても選べます。</div>' : ''), '', true);
 }
-// 吹き出しを、クリックしたカードのそば（上、入らなければ下）に置く
-function placeBar() {
+// 選んだカード（ユニット）の手を「出す場所」「伏せる場所」「移動先」などにまとめ、ボタンは場所や対象だけを書く
+let chainOpen = new Set(), chainFocus = null;
+let CHAINVIEW = 'd', chainHover = null;
+const CIRC = '①②③④⑤⑥⑦⑧⑨⑩';
+const chainNo = (uid) => { const i = S.chain.findIndex(c => c.uid === uid); return i < 0 ? '' : CIRC[i] || String(i + 1); };
+function chainHTML() {
+  if (!S || !S.chain.length) return '';
+  const top = S.chain[S.chain.length - 1];
+  const badges = CHAINVIEW !== 'a' && CHAINVIEW !== 'd';
+  const rows = S.chain.slice().reverse().map((ch, i) => {
+    const cls = ch.ctrl === YOU ? 'y' : 'f';
+    const tg = (ch.tg || []).filter(u => S.cards[u]).map(u => (badges && S.cards[u].zone === 'chain' ? `<span class="chb ${S.chain.find(c => c.uid === u).ctrl === YOU ? 'y' : 'f'}">${chainNo(u)}</span>` : '') + esc(D(u).name) + (S.cards[u].zone === 'chain' ? '（呪文）' : ''));
+    if (CHAINVIEW === 'd' && i >= 2 && !chainOpen.has(ch.uid)) {
+      // 古い段は1行に縮める。クリックで開く（▸）
+      const tgs = (ch.tg || []).filter(u => S.cards[u]);
+      const tiny = (u) => `<span class="tiny cimg" ${bg(S.cards[u].key)} data-zkey="${S.cards[u].key}"></span>`;
+      return `<div class="chrow drow mini ${cls}" data-chuid="${ch.uid}" data-chopen="${ch.uid}" title="クリックで詳しく"><div class="chn"><span class="chev">▸</span>${tiny(ch.uid)}<b>${esc(NM(ch.ctrl))}</b>：${esc(D(ch.uid).name)}${tgs.length ? ` <span class="darrow ${cls}" style="padding:0">▶</span> ${tgs.map(u => tiny(u) + esc(D(u).name)).join("、")}` : ""}</div></div>`;
+    }
+    if (CHAINVIEW === 'd') {
+      const tgi = (ch.tg || []).filter(u => S.cards[u]).map(u => { const z = S.cards[u].zone, c2 = z === 'chain' ? (S.chain.find(c => c.uid === u).ctrl === YOU ? 'y' : 'f') : (S.cards[u].ctrl === YOU ? 'y' : 'f');
+        return `<div class="dtg"><div class="chimg cimg ${c2}" ${bg(S.cards[u].key)} data-zkey="${S.cards[u].key}"></div><span>${esc(D(u).name)}<small>${z === 'chain' ? 'チェーン上の呪文' : (S.cards[u].ctrl === YOU ? 'あなた' : esc(NM(FOE))) + 'の' + (z === 'board' ? E.locName(S, S.cards[u].loc) : 'カード')}</small></span></div>`; }).join('');
+      const fold = i >= 2 ? `<button class="chfold" data-chopen="${ch.uid}">▾ たたむ</button>` : "";
+      return `<div class="chrow drow ${cls}" data-chuid="${ch.uid}">${fold}<div class="dsrc"><div class="chimg cimg" ${bg(S.cards[ch.uid].key)} data-zkey="${S.cards[ch.uid].key}"></div>
+        <div class="chn">${i === 0 ? '<span class="chtop">次に解決</span>' : ''}<b>${esc(NM(ch.ctrl))}</b>：${esc(D(ch.uid).name)}</div></div>${tgi ? `<div class="darrow ${cls}">▼ 対象</div><div class="dtgs">${tgi}</div>` : ''}</div>`;
+    }
+    return `<div class="chrow ${cls}" data-chuid="${ch.uid}"><div class="chimg cimg" ${bg(S.cards[ch.uid].key)} data-zkey="${S.cards[ch.uid].key}"></div>
+      <div><div class="chn">${badges ? `<span class="chb ${cls}">${chainNo(ch.uid)}</span>` : ''}${i === 0 ? '<span class="chtop">次に解決</span>' : ''}<b>${esc(NM(ch.ctrl))}</b>：${esc(D(ch.uid).name)}</div>${tg.length ? `<div class="cht">対象：${tg.join('、')}</div>` : ''}</div></div>`;
+  }).join('');
+  const sw = `<div class="chsw"><span>見せ方</span>${[['a', 'A 矢印'], ['b', 'B 番号'], ['c', 'C 番号＋矢印'], ['d', 'D カード'], ['e', 'E 暗くする']].map(([k, t]) => `<button data-cv="${k}" class="${CHAINVIEW === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
+  const me = myAct();
+  const msg = me ? (top.ctrl === YOU ? 'あなたの呪文が解決を待っています。さらに重ねるか、パスで解決します。' : `${esc(NM(FOE))}の「${esc(D(top.uid).name)}」に対応できます。リアクションの呪文を唱えるか、対応しないならパス。`) : `${esc(NM(FOE))}が対応を考えています…`;
+  return `<div class="chainbox"><div class="chh">チェーン（上から順に解決）</div><div class="chlist">${rows}</div><div class="chmsg">${msg}</div></div>`;
+}
+// チェーンの呪文から、その対象へ矢印を引く（画面全体に重ねた透明な絵。クリックの邪魔はしない）
+function drawArrows() {
+  let svg = document.getElementById('arrows');
+  if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = 'arrows'; document.body.appendChild(svg); }
+  svg.innerHTML = '';
+  if (!S || view !== 'game' || !S.chain.length || overlay) { const bd = document.querySelector('.board'); if (bd) bd.classList.remove('spot'); return; }
+  const W = innerWidth, H = innerHeight; svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const NS = 'http://www.w3.org/2000/svg';
+  const defs = document.createElementNS(NS, 'defs');
+  defs.innerHTML = ['y', 'f'].map(c => `<marker id="ah-${c}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-${c}"/></marker>`).join('');
+  svg.appendChild(defs);
+  document.querySelectorAll('.chaintg').forEach(e => { e.classList.remove('chaintg', 'cy', 'cf'); delete e.dataset.chb; });
+  const top = S.chain[S.chain.length - 1];
+  // 番号札（B・C）：盤面の対象に「①」などを付ける
+  if (CHAINVIEW !== 'a' && CHAINVIEW !== 'd') S.chain.forEach(ch => {
+    for (const u of ch.tg || []) {
+      if (!S.cards[u] || S.cards[u].zone === 'chain') continue;
+      const el = document.querySelector(`.board [data-unit="${u}"], .board [data-gear="${u}"], .board [data-hidden="${u}"]`); if (!el) continue;
+      el.classList.add('chaintg', ch.ctrl === YOU ? 'cy' : 'cf'); el.dataset.chb = (el.dataset.chb || '') + chainNo(ch.uid);
+    }
+  });
+  const bd = document.querySelector('.board'); if (bd) bd.classList.toggle('spot', CHAINVIEW === 'e');
+  if (CHAINVIEW === 'd') S.chain.forEach(ch => { for (const u of ch.tg || []) { const el = S.cards[u] && S.cards[u].zone !== 'chain' && document.querySelector(`.board [data-unit="${u}"], .board [data-gear="${u}"], .board [data-hidden="${u}"]`); if (el) el.classList.add('chaintg', ch.ctrl === YOU ? 'cy' : 'cf'); } });
+  S.chain.forEach((ch, i) => {
+    if (CHAINVIEW === 'b' || CHAINVIEW === 'd' || CHAINVIEW === 'e') return;
+    if (CHAINVIEW === 'c' && ch.uid !== (chainHover || top.uid)) return;
+    const row = document.querySelector(`.chainbox [data-chuid="${ch.uid}"] .chimg`); if (!row) return;
+    const c = ch.ctrl === YOU ? 'y' : 'f', sr = row.getBoundingClientRect();
+    for (const u of ch.tg || []) {
+      if (!S.cards[u]) continue;
+      let el, toChain = false;
+      if (S.cards[u].zone === 'chain') { el = document.querySelector(`.chainbox [data-chuid="${u}"] .chimg`); toChain = true; }
+      else el = document.querySelector(`.board [data-unit="${u}"], .board [data-gear="${u}"], .board [data-hidden="${u}"]`);
+      if (!el) continue;
+      const tr = el.getBoundingClientRect(), sx = sr.left, sy = sr.top + sr.height / 2;
+      let d;
+      if (toChain) { const tx = tr.left, ty = tr.top + tr.height / 2, bend = 46; d = `M${sx},${sy} C${sx - bend},${sy} ${tx - bend},${ty} ${tx - 2},${ty}`; }
+      else { el.classList.add('chaintg', 'c' + c); const tx = tr.right + 4, ty = tr.top + tr.height / 2, mx = (sx + tx) / 2; d = `M${sx},${sy} C${mx},${sy - 60} ${mx},${ty - 60} ${tx},${ty}`; }
+      const p = document.createElementNS(NS, 'path'); p.setAttribute('d', d); p.setAttribute('class', 'arr arr-' + c); p.setAttribute('marker-end', `url(#ah-${c})`);
+      svg.appendChild(p);
+    }
+  });
+}
+window.addEventListener('resize', () => drawArrows());
+// チェーンの行にマウスを乗せたら、その呪文の矢印を出す（C）。見せ方の切り替え
+document.addEventListener('mouseover', (e) => {
+  const row = e.target.closest && e.target.closest('.chainbox [data-chuid]'); const u = row ? row.dataset.chuid : null;
+  if (u === chainHover) return; chainHover = u;
+  if (CHAINVIEW === 'c') drawArrows();
+  document.querySelectorAll('.chrow.hov').forEach(x => x.classList.remove('hov')); if (row) row.classList.add('hov');
+  clearHl(); const ch = u && S && S.chain.find(c => c.uid === u);
+  if (ch) for (const t of ch.tg || []) { if (!S.cards[t]) continue; const sel = S.cards[t].zone === 'chain' ? `.chainbox [data-chuid="${t}"]` : `.board [data-unit="${t}"], .board [data-gear="${t}"], .board [data-hidden="${t}"]`; document.querySelectorAll(sel).forEach(el => el.classList.add('hovtg')); }
+});
+document.addEventListener('click', (e) => { const o = e.target.closest && e.target.closest('[data-chopen]'); if (o) { const u = o.dataset.chopen; if (chainOpen.has(u)) chainOpen.delete(u); else chainOpen.add(u); chainFocus = u; render(); return; } });
+document.addEventListener('click', (e) => { const b = e.target.closest && e.target.closest('[data-cv]'); if (!b) return; CHAINVIEW = b.dataset.cv; store.set('rift-chainview', CHAINVIEW); render(); });
+function groupBtns(list, A) {
+  if (!list.length) return '';
+  const groups = new Map();
+  for (const a of list) {
+    const l = actLabel(a), c = a.uid !== undefined && S.cards[a.uid] ? CARDS[S.cards[a.uid].key] : null;
+    let main = l.main, from = '';
+    const fm = main.match(/^(チャンピオン|伏せ札から|捨て札から)：/); if (fm) { from = fm[1] === 'チャンピオン' ? '' : fm[1]; main = main.slice(fm[0].length); }
+    let verb, chip;
+    if (a.t === 'play' && c && c.type === 'unit') { verb = '出す場所'; chip = main.replace(/^.*?を/, '').replace(/に出す/, ''); }
+    else if (a.t === 'play' && c && c.type === 'spell') {
+      verb = '唱える';
+      const tgs = (a.tg || []).map(u => !S.cards[u] ? '?' : D(u).name + (S.cards[u].zone === 'chain' ? `（${S.cards[u].ctrl === YOU ? '自分' : NM(FOE)}の呪文）` : ''));
+      const to = (main.match(/（(移動先：.*?)）/) || [, ''])[1];
+      chip = (tgs.length ? '対象：' + tgs.join('、') : '') + (to ? ' ' + to : '') || '唱える';
+    }
+    else if (a.t === 'play' && c && c.type === 'gear') { verb = a.att ? '装備する先' : '出す'; chip = a.att ? D(a.att).name : '出す'; }
+    else if (a.t === 'hide') { verb = '伏せる場所'; chip = main.replace(/^.*?を/, '').replace(/に伏せる$/, ''); }
+    else if (a.t === 'move') { verb = '移動先'; chip = main.replace(/^.*を/, '').replace(/へ移動$/, ''); }
+    else { verb = a.t === 'equip' ? '装備' : '能力'; chip = main; }
+    const key = from + verb + '|' + l.sub;
+    if (!groups.has(key)) groups.set(key, { verb: (from ? from + '・' : '') + verb, sub: l.sub, items: [] });
+    groups.get(key).items.push({ a, chip: chip.trim() || main });
+  }
+  // 同じ文のボタンがある時は、対象の場所（自分／相手・どこにいるか）も書く
+  const whereOf = (u) => { const c = S.cards[u]; if (!c) return ""; const side = c.ctrl === YOU ? "自分" : "相手"; return c.zone === "board" ? side + "・" + E.locName(S, c.loc) : side; };
+  for (const g of groups.values()) {
+    const cnt = {}; g.items.forEach(it => cnt[it.chip] = (cnt[it.chip] || 0) + 1);
+    g.items.forEach(it => { if (cnt[it.chip] > 1 && it.a.tg && it.a.tg.length) it.chip = "対象：" + it.a.tg.map(u => (S.cards[u] ? D(u).name : "?") + "（" + whereOf(u) + "）").join("、"); });
+    // それでも同じ文が残る時は番号を付ける（マウスを乗せると、盤面でどの札か光る）
+    const cnt2 = {}, seen = {}; g.items.forEach(it => cnt2[it.chip] = (cnt2[it.chip] || 0) + 1);
+    g.items.forEach(it => { if (cnt2[it.chip] > 1) { seen[it.chip] = (seen[it.chip] || 0) + 1; it.chip += " (" + seen[it.chip] + ")"; } });
+  }
+  return [...groups.values()].map(g => `<div class="cgroup"><div class="cgh">${esc(g.verb)}${g.sub ? `<small>${esc(g.sub.replace(/^コスト：/, ''))}</small>` : ''}</div>
+    <div class="chips">${g.items.map(({ a, chip }) => `<button data-act="${A.indexOf(a)}">${esc(chip)}</button>`).join('')}</div></div>`).join('');
+}
+function placeBar() {}
+function placeBarOld() {
   const b = document.querySelector('.pickbar.anch'), board = document.querySelector('.board'); if (!b || !board) return;
   const key = sel.card ? `[data-card="${sel.card}"]` : sel.units.length ? `[data-unit="${sel.units[sel.units.length - 1]}"]` : sel.info ? `[data-unit="${sel.info}"],[data-gear="${sel.info}"],[data-hidden="${sel.info}"]` : null;
   const el = key && board.querySelector(key);
@@ -3400,6 +3651,21 @@ function tKeys(a) {
   return [];
 }
 // 選んだ対象（順番は問わない）を全部含む手だけ残す
+// 選択肢にマウスを乗せた時に、盤面でその手の対象・場所を光らせる
+function hlKeys(a) {
+  const k = tKeys(a);
+  if (!k.length && a.u !== undefined && typeof a.u === 'string') k.push('u:' + a.u);
+  return k;
+}
+function hlAct(a) {
+  clearHl(); if (!a) return;
+  for (const key of hlKeys(a)) {
+    const id = key.startsWith("u:") ? key.slice(2) : key.slice(4);
+    if (key.startsWith('u:')) document.querySelectorAll(`.board [data-unit="${id}"], .board [data-gear="${id}"], .board [data-hidden="${id}"], .board [data-card="${id}"]`).forEach(el => el.classList.add('hovtg'));
+    else document.querySelectorAll(`.board [data-loc="${id}"]`).forEach(el => el.classList.add('hovloc'));
+  }
+}
+function clearHl() { document.querySelectorAll('.hovtg, .hovloc').forEach(el => el.classList.remove('hovtg', 'hovloc')); }
 function subMulti(have, need) { const m = {}; for (const k of have) m[k] = (m[k] || 0) + 1; for (const k of need) { if (!m[k]) return null; m[k]--; } return m; }
 function pickCands(list) { return list.filter(a => subMulti(tKeys(a), sel.picks)); }
 // 対象を選べる状態か（何か選んでいる・選択中・Fizz）。何も選んでいない時に盤面をクリックしても勝手に手は出さない
@@ -3442,7 +3708,7 @@ function ctxList(A) {
     list = A.filter(a => (a.t === 'equip' && a.g === sel.info) || (a.t === 'orb' && a.g === sel.info) || (a.t === 'play' && a.uid === sel.info));
     head = `<b>${esc(D(sel.info).name)}</b>`;
   } else {
-    if (S.chain.length) head = `<b>${esc(D(chainTop()).name)}への対応</b><div class="hint">リアクションを使うなら手札をクリック。使わないならパス。</div>`;
+    if (S.chain.length) head = `<div class="hint">上の「チェーン」を見て、対応するなら手札のリアクションをクリック。しないならパス。</div>`;
     else if (S.sd) head = `<div class="hint">ショーダウン中。アクション／リアクションを使うかパス。両者が続けてパスすると${S.sd.combat ? '戦闘ダメージ' : '解決'}に進みます。</div>`;
     else head = `<div class="hint">① 金色に光っている手札をクリック → 出し方を選ぶ<br>② 自分のユニットをクリック → 移動先を選ぶ</div>`;
     list = A.filter(a => ['kennen', 'lg', 'lgemp', 'uemp', 'akali'].includes(a.t) || (a.t === 'play' && ['trash', 'hidden', 'champ'].includes(S.cards[a.uid].zone)));
@@ -3496,17 +3762,38 @@ function rulesHTML() {
     <p class="small">カードテキストはPiltover Archive準拠。デッキ：${Object.values(DECKS).map(d => esc(d.short + '＝' + d.source)).join('／')}。カード画像はRiot Gamesの著作物で、個人の非商用ファンプロジェクトとして使っています。</p>
     <div class="row"><button class="primary" data-k="close">閉じる</button></div></div></div>`;
 }
+// デッキの強さの目安（2026/11/07時点）。実戦：riftbound.gg・riftdecks.com・Riftbound France などのTier表と大会の使用率。AI：学習AI同士の勝率（PLAN.md）
+// レジェンドの絵で顔がある位置（カード全体に対する横・縦の割合）。枠の真ん中に顔が来るように切り取る
+const FACE = { rivenL: [.45, .08], kennenL: [.5, .2], viktorL: [.55, .25], akaliL: [.45, .2], rengarL: [.55, .22], kaisaL: [.55, .2] };
+// aspect＝枠の横÷縦、scale＝絵の横幅が枠の何倍か
+function facePos(key, aspect, scale) {
+  const f = FACE[key] || [.5, .25], bgH = scale * 419 / 300, boxH = 1 / aspect;
+  const cl = (v) => Math.max(0, Math.min(1, v));
+  const py = bgH > boxH ? cl((f[1] * bgH - boxH / 2) / (bgH - boxH)) : .5, px = scale > 1 ? cl((f[0] * scale - .5) / (scale - 1)) : .5;
+  return `${(px * 100).toFixed(1)}% ${(py * 100).toFixed(1)}%`;
+}
+const TIER_ORDER = ['S', 'A', 'B', 'C', 'D', undefined];
+const TIERS = {
+  riven: { t: 'S', why: '実戦：ほぼ全てのTier表で最上位・使用率1位（欧州リージョナル約43%）。AI同士：勝率5割前後' },
+  kennen: { t: 'A', why: '実戦：多くのTier表でTier 1〜S・使用率上位。AI同士：勝率4割ほどとやや苦戦' },
+  kaisa: { t: 'A', why: '実戦：Tier表の評価は1〜Bと割れる・使用率2位。AI同士：勝率7割超で最強（AIが使いやすい）' },
+  rengar: { t: 'B', why: '実戦：Tier 2〜A・使用率は低め（約2%）。AI同士：勝率5割前後' },
+  akali: { t: 'B', why: '実戦：Tier 2〜A・使用率は1%未満。AI同士：勝率4〜5割' },
+  viktor: { t: 'C', why: '実戦：評価がTier 3〜Sと大きく割れ、使用率は約1%。AI同士：勝率4割前後と下位' },
+};
 function setupHTML() {
   const has = !!store.get('rift-game', null);
-  const deckOpt = (k, attr, cur) => { const d = DECKS[k]; return `<button class="opt ${cur === k ? 'on' : ''}" ${attr}="${k}"><span class="face" style="background-image:url('${IMG(d.legend)}')"></span><span><b>${esc(d.label)}</b><span>${esc(d.source)}</span></span></button>`; };
+  const deckOpt = (k, attr, cur) => { const d = DECKS[k], t = TIERS[k];
+    return `<button class="opt ${cur === k ? 'on' : ''}" ${attr}="${k}" title="${t ? esc('Tier ' + t.t + '：' + t.why) : ''}"><span class="face" style="background-image:url('${IMG(d.legend)}');background-size:110% auto;background-position:${facePos(d.legend, 2.4, 1.1)}">${t ? `<i class="tier t${t.t}">${t.t}</i>` : ''}</span><span><b>${esc(d.label)}</b><span>${esc(d.source)}</span></span></button>`; };
   const keys = Object.keys(DECKS);
+  keys.sort((a, b) => TIER_ORDER.indexOf((TIERS[a] || {}).t) - TIER_ORDER.indexOf((TIERS[b] || {}).t)); // 強い順に並べる
   const mineOpts = keys.map(k => deckOpt(k, 'data-deck', cfg.deck)).join('');
   const foeOpts = `<button class="opt ${cfg.foe === 'random' ? 'on' : ''}" data-foe="random"><span class="face rnd">?</span><span><b>ランダム</b><span>6デッキから毎回ランダム</span></span></button>` + keys.map(k => deckOpt(k, 'data-foe', cfg.foe)).join('');
   const lv = Object.entries(LEVELS).map(([k, L]) => `<button class="opt ${cfg.level === k ? 'on' : ''}" data-level="${k}"><span><b>${L.name}</b><span>${L.sub}${L.opts.useNet && NET ? `・第${NET.gen}世代` : ''}</span></span></button>`).join('');
   return `<div class="setup">
     <div class="sh"><h2>Rift Sparring</h2><p>RiftboundのRadiance環境のトップデッキ6種で練習できるAI対戦。8点先取。</p><span class="rec">通算 ${LAB.record.w}勝${LAB.record.l}敗</span><span class="small" style="flex-basis:100%;opacity:.7">個人の非商用ファンプロジェクトです。Riot Gamesの公認・承認を受けたものではありません。カード画像・名称はRiot Gamesの著作物です。</span></div>
     <div class="scols">
-      <div class="scol"><div class="lbl">あなたのデッキ</div><div class="opts">${mineOpts}</div></div>
+      <div class="scol"><div class="lbl">あなたのデッキ <span class="tierkey">（Tier＝強さの目安。マウスを乗せると理由）</span></div><div class="opts">${mineOpts}</div></div>
       <div class="scol"><div class="lbl">AIのデッキ</div><div class="opts">${foeOpts}</div></div>
       <div class="scol">
         <div class="lbl">AIの強さ</div><div class="lvls">${lv}</div>
@@ -3595,6 +3882,7 @@ function bindSetup() {
 function bind(A) {
   const q = (s) => app.querySelectorAll(s);
   bindTop();
+  q('[data-act]').forEach(b => { b.addEventListener('mouseenter', () => hlAct(A[+b.dataset.act])); b.addEventListener('mouseleave', clearHl); });
   q('[data-act]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const a = A[+b.dataset.act]; if (a) { hover = null; doAction(a); } });
   q('[data-k]').forEach(b => { if (b.closest('header')) return; b.onclick = (e) => {
     const k = b.dataset.k;
