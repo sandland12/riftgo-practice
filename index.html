@@ -131,7 +131,7 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .card.can { box-shadow: 0 0 0 2px var(--gold), 0 0 16px rgba(217,182,92,.35); }
 .card.no { filter: brightness(.6) saturate(.7); }
 .card.sel { transform: translateY(-12px); box-shadow: 0 0 0 3px var(--gold), 0 10px 22px rgba(0,0,0,.6); }
-.card.mk { box-shadow: 0 0 0 3px var(--foe); }
+.card.mk { box-shadow: 0 0 0 3px var(--foe), 0 0 18px rgba(234,115,92,.6); animation: tgtpulse .9s ease-in-out infinite alternate; }
 .card .costtag { position: absolute; left: 6px; bottom: 6px; background: rgba(11,19,27,.9); border-radius: 6px; padding: 1px 6px; font: 700 13px/1.3 var(--f-num); color: var(--gold); }
 
 /* sidebar */
@@ -333,6 +333,23 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .act .am, .pbtns .am { display: block; }
 .act .as, .pbtns .as { display: block; font-size: 11.5px; color: var(--ink-dim); margin-top: 2px; }
 .barnote { font-size: 13px; color: var(--gold); background: rgba(217,182,92,.1); border: 1px solid rgba(217,182,92,.5); border-radius: 9px; padding: 9px 11px; line-height: 1.5; }
+/* クリックしたカードのそばに出す吹き出し */
+.pickbar.anch { transform: none; width: min(420px, 92%); max-height: 60%; animation: anchin .15s ease-out; }
+@keyframes anchin { from { opacity: 0; } to { opacity: 1; } }
+.pickbar.anch .pbtns { grid-template-columns: 1fr; }
+.pickbar .pbtns button.none { border-color: var(--line); color: var(--ink-dim); }
+/* 帯の中に並べるカード（山札の上・予見など） */
+.pcards { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 6px 0 8px; }
+.pcard { width: 92px; aspect-ratio: 300 / 419; border-radius: 7px; background-size: cover; background-position: center; border: 1px solid #000; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,.5); transition: transform .12s; }
+.pcard:hover { transform: translateY(-3px); }
+.pcard.on { box-shadow: 0 0 0 3px var(--gold), 0 6px 14px rgba(0,0,0,.6); }
+.pcard.dim { filter: brightness(.55) saturate(.6); cursor: default; }
+.pask { text-align: center; color: var(--gold); font-weight: 700; font-size: 13px; margin: 2px 0 6px; }
+/* 右の欄：今使える能力（レジェンド能力など）は色を変えて目立たせる */
+.ablbl { font-size: 11px; letter-spacing: .12em; color: #b9a7ea; margin: 2px 0 -2px; }
+.act.ab { background: linear-gradient(90deg, rgba(160,122,217,.22), rgba(160,122,217,.06)); border: 1px solid rgba(160,122,217,.55); border-left: 4px solid var(--chaos); }
+.act.ab:hover { border-color: #c9b3f3; background: linear-gradient(90deg, rgba(160,122,217,.34), rgba(160,122,217,.1)); }
+.act.ab .as { color: #c9b8ea; }
 /* リプレイ */
 .handrow.mini { flex: none; min-height: 0; padding: 4px 4px 4px; gap: 6px; }
 .handrow.mini > .card { width: calc(64px * var(--s)); height: calc(90px * var(--s)); border-radius: 6px; cursor: default; }
@@ -3069,7 +3086,7 @@ function onGameOver() {
   if (trainer && training) trainer.postMessage({ t: 'human', human: all });
 }
 function doAction(a) {
-  ccSel = null; ccHidden = false;
+  ccSel = null;
   if (NP && NP.game) { if (!netDo(a)) { render(); return; } } else { act(a); recordFeatures(); }
   sel = { units: [], card: null, info: sel.info && S.cards[sel.info] && S.cards[sel.info].zone === 'board' ? sel.info : null, picks: [] };
   if (S.over) onGameOver();
@@ -3125,14 +3142,14 @@ function render() {
     </aside></div>
     ${!RP && S.choice && S.choice.p === YOU && S.choice.kind === 'mull' ? mullHTML() : ''}
     ${cardChoiceHTML(A)}
-    ${cardChoiceHTML(A) ? '' : revealHTML()}
+    ${revealHTML()}
     ${!RP && S.over ? overHTML() : ''}
     ${overlay === 'trash0' || overlay === 'trash1' ? trashHTML(+overlay.slice(5), A) : ''}
     ${overlay === 'lab' ? labHTML() : ''}
     ${overlay === 'rules' ? rulesHTML() : ''}`;
   bind(A);
   if (sel.card && myAct()) { const pp = payPreview(sel.card, A); markPay(pp); const d = document.getElementById('detail'); if (d && !hover) d.innerHTML += payLine(pp); }
-  fitBoard();
+  fitBoard(); placeBar();
   const lb = document.getElementById('logbox'); if (lb) lb.scrollTop = lb.scrollHeight;
   if (overlay === 'lab') bindLab();
 }
@@ -3244,7 +3261,8 @@ function actsHTML(A) {
   if (S.over) return `<div class="row"><button class="primary" data-k="again">もう一度</button></div>`;
   if (!myAct()) return `<div class="hint">${E.actor(S) === FOE ? (NP ? esc(NM(FOE)) + 'が考えています…' : 'AIが行動中です…') : '…'}</div><div class="row"><button class="primary" disabled>${NP ? esc(NM(FOE)) : 'AI'}の番</button></div>`;
   const barOn = !!pickBarHTML(A);
-  const btns = (list) => !list.length ? '' : barOn ? '<div class="barnote">← 盤面の上の<b>金色の枠</b>から選んでください（水色に光っている所をクリックしても選べます）</div>' : `<div class="acts">${list.map(a => `<button class="act" data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>`;
+  const isAb = (a) => ['kennen', 'lg', 'lgemp', 'uemp', 'akali', 'orb', 'deserter'].includes(a.t) || (a.t === 'play' && ['trash', 'hidden', 'champ'].includes(a.zone));
+  const btns = (list) => !list.length ? '' : barOn ? '<div class="barnote">← 盤面に出た<b>金色の枠</b>から選んでください（水色に光っている所をクリックしても選べます）</div>' : (list.some(isAb) && !sel.card && !sel.units.length && !sel.info && !S.choice ? '<div class="ablbl">今使える能力</div>' : '') + `<div class="acts">${list.map(a => `<button class="act ${isAb(a) ? 'ab' : ''}" data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>`;
   if (S.choice && S.choice.p === YOU) {
     if (S.choice.kind === 'mull') return '<div class="hint">マリガンを選んでください</div>';
     const clr = sel.picks.length ? `<div class="row"><button class="secondary" data-k="clear">選び直す</button></div>` : '';
@@ -3289,35 +3307,29 @@ function actLabel(a) {
     return { main: from + main, sub: [cost, ...flags].filter(Boolean).join('・') };
   }
   if (a.t === 'move') return { main: d.replace(' → ', 'を') + 'へ移動', sub: '' };
+  const lgName = CARDS[S.players[YOU].legend.key].name.split(',')[0];
+  if (a.t === 'kennen') return { main: `${nmOf(a.u)}に強襲+2を与える`, sub: `${lgName}のレジェンド能力（レジェンドをタップ）` };
+  if (a.t === 'lg') return { main: 'リクルート（トークン）をベースに出す', sub: `${lgName}のレジェンド能力・コスト：エネルギー1` };
+  if (a.t === 'lgemp') return { main: `${lgName}をエンパワーする`, sub: 'レジェンド能力・コスト：エネルギー3＋パワー1（どの色でも）' };
+  if (a.t === 'akali') return { main: `${nmOf(a.u)}をベースへ逃がす`, sub: `${lgName}のレジェンド能力（レジェンドをタップ）` };
+  if (a.t === 'uemp') return { main: `${nmOf(a.u)}をエンパワーする`, sub: 'ユニットの能力・コスト：エネルギー2＋激情パワー1' };
+  if (a.t === 'orb') return { main: `${nmOf(a.u)}に-1`, sub: 'Orb of Regret の能力（タップ）' };
+  if (a.t === 'deserter') return { main: `${nmOf(a.y)}をレディにする`, sub: `Riven, Deserter の能力（${nmOf(a.x)}をエグゾースト）` };
+  if (a.t === 'equip') { const m = d.match(/（(.*)）$/); return { main: `${nmOf(a.g)}を${nmOf(a.u)}に装備`, sub: m ? 'コスト：' + m[1].replace('任意1', 'パワー1（どの色でも）') : '' }; }
   if (a.t === 'hide') return { main: d.replace(/（任意1）$/, ''), sub: 'コスト：パワー1（どの色でも）' };
   return { main: d, sub: '' };
 }
 const actBtnInner = (a) => { const l = actLabel(a); return `<span class="am">${esc(l.main)}</span>${l.sub ? `<small class="as">${esc(l.sub)}</small>` : ''}`; };
 
-// ---- 選択肢の帯・カードを見て選ぶ画面 ----
-// カードを見て選ぶ種類（盤面ではなく、山札や手札のカードを選ぶもの）
-const CARD_CHOICE = ['look', 'predict', 'sabotage', 'discard'];
-let barBottom = false, ccSel = null, ccHidden = false;
+// ---- 選択肢の帯 ----
+// ・手札やユニットをクリックした時：そのカードのすぐそばに小さく出す（吹き出し）
+// ・ゲームから選ぶように言われた時：盤面の上の真ん中に出す。山札の上を見る・予見・相手の手札から選ぶ時は、帯の中にカードを並べる
+// ・手札を捨てる時は、帯で知らせて手札（赤く光る）をクリックして選ぶ
+const CARD_CHOICE = ['look', 'predict', 'sabotage'];
+let barBottom = false, ccSel = null;
 const optCard = (o) => o.uid !== undefined ? o.uid : o.draw !== undefined ? o.draw : o.id !== undefined ? o.id : o.noct !== undefined ? o.noct : null;
-function isCardChoice() { return !RP && S && S.choice && S.choice.p === YOU && CARD_CHOICE.includes(S.choice.kind) && myAct(); }
-function pickBarHTML(A) {
-  if (RP || !myAct() || overlay || S.over) return '';
-  const btns = (list) => list.length ? `<div class="pbtns">${list.map(a => `<button data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>` : '';
-  const bar = (tag, head, body, foot) => `<div class="pickbar ${barBottom ? 'bottom' : ''}" data-stop="1"><div class="ph"><span class="tag">${tag}</span><b>${head}</b><button data-k="barpos">${barBottom ? '↑ 上へ' : '↓ 下へ'}</button></div>${body}${foot ? `<div class="pfoot">${foot}</div>` : ''}</div>`;
-  if (S.choice && S.choice.p === YOU) {
-    if (S.choice.kind === 'mull') return '';
-    if (CARD_CHOICE.includes(S.choice.kind)) return ccHidden ? bar('選んでください', esc(E.choicePrompt(S)), '', '<button class="primary" data-k="ccshow">カードの選択に戻る</button>') : '';
-    return bar('選んでください', esc(E.choicePrompt(S)), tgtHint() + btns(pickCands(A)), sel.picks.length ? '<button class="secondary" data-k="clear">選び直す</button>' : '');
-  }
-  if (S.cast) return bar('選んでください', `Fizz：${esc(D(S.cast.uid).name)}を唱える`, tgtHint() + btns(pickCands(A.filter(a => a.t === 'play'))), `<button class="secondary" data-act="${A.findIndex(a => a.t === 'skip')}">唱えない</button>`);
-  if (!(sel.card || sel.units.length || sel.info)) return '';
-  const { head, list } = ctxList(A), cands = pickCands(list);
-  return bar(cands.length ? 'どうする？' : '選択中', head.replace(/<div class="hint">[\s\S]*$/, '').replace(/<\/?b>/g, ''), (head.match(/<div class="hint">[\s\S]*$/) || [''])[0] + tgtHint() + btns(cands), '<button class="secondary" data-k="clear">選択解除</button>');
-}
-function cardChoiceHTML(A) {
-  if (!isCardChoice() || ccHidden || overlay) return '';
+function cardChoiceBody(A) {
   const ch = S.choice, opts = ch.opts.map((o, i) => ({ o, i, a: A.findIndex(x => x.t === 'ch' && x.i === i) }));
-  // 表示するカード：選択肢に出てくるカード（山札の上を見る時は、見たカード全部）
   const ids = []; const add = (u) => { if (u !== null && u !== undefined && S.cards[u] && !ids.includes(u)) ids.push(u); };
   if (ch.data && ch.data.ids) ch.data.ids.forEach(add);
   opts.forEach(({ o }) => add(optCard(o)));
@@ -3325,16 +3337,44 @@ function cardChoiceHTML(A) {
   if (ids.length === 1) ccSel = ids[0];
   if (ccSel !== null && !ids.includes(ccSel)) ccSel = null;
   const general = opts.filter(({ o }) => optCard(o) === null || !ids.includes(optCard(o)));
-  const cards = ids.map(u => { const n = forCard(u).length; return `<div class="cc cimg ${ccSel === u ? 'on' : ''} ${n ? '' : 'dim'}" ${bg(S.cards[u].key)} data-cc="${u}" data-zkey="${S.cards[u].key}" title="${esc(D(u).name)}">${ch.kind === 'predict' ? '<span class="ccl">山札の一番上</span>' : ''}</div>`; }).join('');
-  const btn = ({ o, a }) => `<button class="${o.none ? 'secondary' : 'primary'}" data-act="${a}">${esc(E.describe(S, A[a]))}</button>`;
+  const cards = ids.map(u => `<div class="pcard cimg ${ccSel === u ? 'on' : ''} ${forCard(u).length ? '' : 'dim'}" ${bg(S.cards[u].key)} data-cc="${u}" data-zkey="${S.cards[u].key}" title="${esc(D(u).name)}"></div>`).join('');
+  const btn = ({ o, a }) => `<button class="${o.none ? 'none' : ''}" data-act="${a}">${actBtnInner(A[a])}</button>`;
   const selOpts = ccSel !== null ? forCard(ccSel) : [];
-  const help = { look: '見たカードの中から選びます。カードをクリックすると、どうするかが出ます。', predict: '山札の一番上のカードです。山札の上に残すか、下へ送るかを選びます。', sabotage: '相手の手札です。山札の下へ送るカードをクリックして選びます。', discard: '捨てるカードをクリックして選びます。' }[ch.kind] || '';
-  return `<div class="ov"><div class="panel" style="width:min(980px,100%)"><h2 style="font-size:22px">${esc(E.choicePrompt(S))}</h2><p>${help}マウスを乗せると拡大します。</p>
-    <div class="ccrow">${cards}</div>
-    ${selOpts.length ? `<div class="ccask">${esc(D(ccSel).name)}をどうする？</div><div class="ccopts">${selOpts.map(btn).join('')}</div>` : ids.length ? '<div class="ccask">カードをクリックしてください</div>' : ''}
-    ${general.length ? `<div class="ccopts">${general.map(btn).join('')}</div>` : ''}
-    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="secondary" data-k="cchide">盤面を見る（あとで戻れます）</button></div></div></div>`;
+  const help = { look: 'カードをクリックすると、どうするかが出ます。', predict: '山札の一番上のカードです。', sabotage: '相手の手札です。山札の下へ送るカードをクリックします。' }[ch.kind] || '';
+  return `<div class="hint">${help}マウスを乗せると拡大します。</div><div class="pcards">${cards}</div>
+    ${selOpts.length ? `<div class="pask">${esc(D(ccSel).name)}をどうする？</div><div class="pbtns">${selOpts.map(btn).join('')}</div>` : ids.length > 1 ? '<div class="pask">カードをクリックしてください</div>' : ''}
+    ${general.length ? `<div class="pbtns" style="margin-top:6px">${general.map(btn).join('')}</div>` : ''}`;
 }
+function pickBarHTML(A) {
+  if (RP || !myAct() || overlay || S.over) return '';
+  const btns = (list) => list.length ? `<div class="pbtns">${list.map(a => `<button data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>` : '';
+  // anchored：クリックしたカードのそばに出す吹き出し
+  const bar = (tag, head, body, foot, anchored) => `<div class="pickbar ${anchored ? 'anch' : barBottom ? 'bottom' : ''}" data-stop="1"><div class="ph"><span class="tag">${tag}</span><b>${head}</b>${anchored ? '<button data-k="clear" title="閉じる">✕</button>' : `<button data-k="barpos">${barBottom ? '↑ 上へ' : '↓ 下へ'}</button>`}</div>${body}${foot ? `<div class="pfoot">${foot}</div>` : ''}</div>`;
+  if (S.choice && S.choice.p === YOU) {
+    if (S.choice.kind === 'mull') return '';
+    if (CARD_CHOICE.includes(S.choice.kind)) return bar('選んでください', esc(E.choicePrompt(S)), cardChoiceBody(A), '');
+    if (S.choice.kind === 'discard') return bar('選んでください', '捨てるカードを手札からクリック', '<div class="hint">赤く光っている手札をクリックすると捨てます。</div>', '');
+    return bar('選んでください', esc(E.choicePrompt(S)), tgtHint() + btns(pickCands(A)), sel.picks.length ? '<button class="secondary" data-k="clear">選び直す</button>' : '');
+  }
+  if (S.cast) return bar('選んでください', `Fizz：${esc(D(S.cast.uid).name)}を唱える`, tgtHint() + btns(pickCands(A.filter(a => a.t === 'play'))), `<button class="secondary" data-act="${A.findIndex(a => a.t === 'skip')}">唱えない</button>`);
+  if (!(sel.card || sel.units.length || sel.info)) return '';
+  const { head, list } = ctxList(A), cands = pickCands(list);
+  const hint = (head.match(/<div class="hint">[\s\S]*$/) || [''])[0];
+  return bar(cands.length ? 'どうする？' : '選択中', head.replace(/<div class="hint">[\s\S]*$/, '').replace(/<\/?b>/g, ''), hint + tgtHint() + btns(cands), '', true);
+}
+// 吹き出しを、クリックしたカードのそば（上、入らなければ下）に置く
+function placeBar() {
+  const b = document.querySelector('.pickbar.anch'), board = document.querySelector('.board'); if (!b || !board) return;
+  const key = sel.card ? `[data-card="${sel.card}"]` : sel.units.length ? `[data-unit="${sel.units[sel.units.length - 1]}"]` : sel.info ? `[data-unit="${sel.info}"],[data-gear="${sel.info}"],[data-hidden="${sel.info}"]` : null;
+  const el = key && board.querySelector(key);
+  const br = board.getBoundingClientRect();
+  if (!el) { b.style.left = (br.width / 2 - b.offsetWidth / 2) + 'px'; b.style.top = '6px'; return; }
+  const r = el.getBoundingClientRect(), w = b.offsetWidth, hgt = b.offsetHeight, gap = 10;
+  let x = r.left + r.width / 2 - w / 2 - br.left; x = Math.max(6, Math.min(br.width - w - 6, x));
+  let y = r.top - br.top - hgt - gap; if (y < 6) y = r.bottom - br.top + gap; if (y + hgt > br.height - 6) y = Math.max(6, br.height - hgt - 6);
+  b.style.left = x + 'px'; b.style.top = y + 'px';
+}
+function cardChoiceHTML() { return ''; }
 
 // ---- クリックで対象を選ぶ ----
 // 手ごとに「クリックで選ぶ対象」の並び（'u:カード' か 'loc:場所'）を出す。場所は base（自分のベース）/0/1（バトルフィールド）
@@ -3566,9 +3606,7 @@ function bind(A) {
     if (k === 'export') { exportRecords(); return; }
     if (k === 'clear') { sel = { units: [], card: null, info: null, picks: [] }; render(); return; }
     if (k === 'barpos') { barBottom = !barBottom; render(); return; }
-    if (k === 'cchide') { ccHidden = true; render(); return; }
     if (k === 'revealok') { revealShown = revealKey(S.reveal); render(); return; }
-    if (k === 'ccshow') { ccHidden = false; render(); return; }
     if (k === 'mullok') { const key = mullSel.slice().sort().join(','); const i = S.choice.opts.findIndex(o => o.ids.slice().sort().join(',') === key); mullSel = []; doAction({ t: 'ch', i: Math.max(0, i) }); return; }
   }; });
   q('[data-rpk]').forEach(b => b.onclick = () => {
