@@ -324,6 +324,15 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .ccopts { display: grid; gap: 8px; margin-top: 18px; }
 .ccopts button { font-size: 15px; }
 .ccask { text-align: center; color: var(--gold); font-weight: 700; margin-top: 14px; }
+/* 公開で見た相手の札 */
+.back.seen { background-size: cover; background-position: center; border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), -2px 0 4px rgba(0,0,0,.4); position: relative; cursor: zoom-in; }
+.back.seen::after { content: "公開"; position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); background: var(--gold); color: #1b1407; font-size: 9px; font-weight: 700; padding: 0 4px; border-radius: 4px; white-space: nowrap; }
+.hid.peek { outline: 2px dashed var(--foe); outline-offset: 2px; }
+.backs .back.seen, .backs .back.seen + .back { margin-left: 4px; } .backs .back.seen:first-child { margin-left: 0; }
+/* 選択肢のボタン：何をするか（大きく）＋コスト（小さく） */
+.act .am, .pbtns .am { display: block; }
+.act .as, .pbtns .as { display: block; font-size: 11.5px; color: var(--ink-dim); margin-top: 2px; }
+.barnote { font-size: 13px; color: var(--gold); background: rgba(217,182,92,.1); border: 1px solid rgba(217,182,92,.5); border-radius: 9px; padding: 9px 11px; line-height: 1.5; }
 /* リプレイ */
 .handrow.mini { flex: none; min-height: 0; padding: 4px 4px 4px; gap: 6px; }
 .handrow.mini > .card { width: calc(64px * var(--s)); height: calc(90px * var(--s)); border-radius: 6px; cursor: default; }
@@ -730,7 +739,7 @@ function newGame(decks, seed, opt = {}) {
     names: opt.names || ['あなた', 'AI'] };
   s.players = decks.map((d, p) => {
     const runeDeck = []; for (const [dom, n] of Object.entries(d.runes)) for (let i = 0; i < n; i++) runeDeck.push(dom);
-    return { deck: [], hand: [], trash: [], banish: [], champ: [], runeDeck: shuffle(s, runeDeck), runes: [], pool: 0,
+    return { deck: [], hand: [], trash: [], banish: [], champ: [], runeDeck: shuffle(s, runeDeck), runes: [], pool: 0, seen: [], peek: -1,
       legend: { key: d.legend, ex: false, emp: false }, points: 0, scored: {}, played: 0, heron: 0,
       flags: {}, deckKey: d.short, bfChoices: d.bfs.slice() };
   });
@@ -770,6 +779,8 @@ function leaveZone(s, uid) {
   delete c.kind; delete c.loc; delete c.ex; delete c.dmg; delete c.tm; delete c.buff; delete c.stun; delete c.assault; delete c.att; delete c.ctrl; delete c.htTurn; delete c.modes; delete c.flowTurn;
   delete c.emp; delete c.dn; delete c.shield; delete c.tank; delete c.temp;
 }
+// 山札から手札に来た札は、前に公開されていても「どれか分からない」札に戻る
+function unsee(s, uid) { for (const q of s.players) if (q.seen && q.seen.length) q.seen = q.seen.filter(x => x !== uid); }
 function toZone(s, uid, zone) {
   const c = s.cards[uid];
   if (c.zone === 'board') detachFrom(s, uid);
@@ -817,7 +828,13 @@ function killUnit(s, u) {
   if (k === 'dredger') token(s, 'bird', p, 'base', false);
   if (k === 'ferrous') { token(s, 'mech', p, 'base', false); token(s, 'mech', p, 'base', false); }
   if (k === 'sentry') draw(s, p, 1);
-  if (k === 'scuttle') { const oh = s.players[opp(p)].hand; log(s, `Scuttle Crab：${s.names[opp(p)]}が手札を公開（${oh.length ? oh.map(x => CARDS[s.cards[x].key].name).join('、') : 'なし'}）`); }
+  if (k === 'scuttle') {
+    // 死亡時：相手は手札を公開する。このターンの間、相手の伏せ札も見てよい（XPは未実装）
+    const oh = s.players[opp(p)].hand, me = s.players[p];
+    me.seen = [...new Set([...(me.seen || []), ...oh])]; me.peek = s.turnNo;
+    s.reveal = { to: p, from: opp(p), cards: oh.map(x => s.cards[x].key), turn: s.turnNo };
+    log(s, `Scuttle Crab：${s.names[opp(p)]}が手札を公開（${oh.length ? oh.map(x => CARDS[s.cards[x].key].name).join('、') : 'なし'}）`);
+  }
   if (k !== 'recruit' && unitsOf(s, p).some(v => s.cards[v].key === 'viktorLd')) token(s, 'recruit', p, 'base', false);
 }
 
@@ -825,7 +842,7 @@ function draw(s, p, n, quiet) {
   const pl = s.players[p];
   for (let i = 0; i < n; i++) {
     if (!burnoutUntilCards(s, p)) return;
-    const uid = pl.deck.shift(); s.cards[uid].zone = 'hand'; pl.hand.push(uid);
+    const uid = pl.deck.shift(); s.cards[uid].zone = 'hand'; pl.hand.push(uid); unsee(s, uid);
   }
   if (!quiet) log(s, `${s.names[p]}は${n}枚引いた`);
 }
@@ -1417,7 +1434,7 @@ function step(s, it) {
       if (o.length) setChoice(s, p, 'akdmg', [...o, { none: 1 }], { n: c.emp ? 2 : 1 }); return; }
     case 'kstun': { if (!canPay(s, p, { e: 2, p: 0 })) return; const o = enemyUnits(s, p).filter(e => it.at === undefined || s.cards[e].loc === it.at).map(e => ({ uid: e })); if (o.length) setChoice(s, p, 'kstun', [...o, { none: 1 }]); return; }
     case 'raven': { const pl = s.players[p]; if (!pl.deck.length) return; const t = pl.deck[0]; const d = CARDS[s.cards[t].key];
-      if (d.type === 'spell') { pl.deck.shift(); s.cards[t].zone = 'hand'; pl.hand.push(t); log(s, `Ravenbloom：${d.name}を手札に加えた`); }
+      if (d.type === 'spell') { pl.deck.shift(); s.cards[t].zone = 'hand'; pl.hand.push(t); unsee(s, t); log(s, `Ravenbloom：${d.name}を手札に加えた`); }
       else { pl.deck.shift(); pl.deck.push(t); log(s, `Ravenbloom：${d.name}を山札の下へ`); } return; }
     case 'faefolk': { const o = enemyUnits(s, p).filter(e => s.cards[e].loc !== it.to).map(e => ({ uid: e })); if (o.length) setChoice(s, p, 'pull', [...o, { none: 1 }], { to: it.to, src: it.uid }); return; }
     case 'star': { const o = unitsAt(s, it.bf, p).filter(x => x !== it.uid).map(x => ({ uid: x })); if (o.length) setChoice(s, p, 'star', [...o, { none: 1 }]); return; }
@@ -1521,7 +1538,7 @@ function resolveChoice(s, i) {
         if (ids.length) { lookChoice(s, p, ids, ch.data.mode); return; }
         break;
       }
-      if (o.draw) { removeFrom(pl.deck, o.draw); s.cards[o.draw].zone = 'hand'; pl.hand.push(o.draw); log(s, `${s.names[p]}は1枚手札に加えた`); ids = ids.filter(x => x !== o.draw); }
+      if (o.draw) { removeFrom(pl.deck, o.draw); s.cards[o.draw].zone = 'hand'; pl.hand.push(o.draw); unsee(s, o.draw); log(s, `${s.names[p]}は1枚手札に加えた`); ids = ids.filter(x => x !== o.draw); }
       for (const id of ids) { removeFrom(pl.deck, id); if (ch.data.mode === 'lrush') { s.cards[id].zone = 'trash'; pl.trash.push(id); } else { s.cards[id].zone = 'deck'; pl.deck.push(id); } }
       break; }
     case 'rivenBB': {
@@ -1785,8 +1802,10 @@ function choicePrompt(s) {
 function determinize(s, viewer) {
   const t = clone(s); t.sim = true; t.log = [];
   const o = opp(viewer), po = t.players[o], pv = t.players[viewer];
-  const hid = []; for (const b of t.bfs) for (const h of b.hidden) if (t.cards[h].owner === o) hid.push(h);
-  const pool = [...po.hand, ...po.deck, ...hid];
+  // 見たことのある札（Scuttle Crabで公開された手札、このターン見てよい伏せ札）は入れ替えない
+  const seen = new Set(pv.seen || []), peek = pv.peek === t.turnNo;
+  const hid = []; for (const b of t.bfs) for (const h of b.hidden) if (t.cards[h].owner === o && !peek) hid.push(h);
+  const pool = [...po.hand.filter(u => !seen.has(u)), ...po.deck, ...hid];
   const keys = shuffle(t, pool.map(u => t.cards[u].key));
   pool.forEach((u, i) => { t.cards[u].key = keys[i]; });
   shuffle(t, pv.deck);
@@ -2618,11 +2637,11 @@ function rpOpen(r) {
   for (const k of r.acts) { const L = E.legalActions(t); dec.push(L.length > 1); E.apply(t, L[k]); turn.push(t.turnNo); }
   RP = { r, i: 0, turn, dec };
   view = 'game'; overlay = null; sel = { units: [], card: null, info: null, picks: [] };
-  setSeat(0); GREC = null; S = rpFresh(r); RECENT = []; render();
+  setSeat(0); GREC = null; S = rpFresh(r); RECENT = []; SEEN_MASK = []; render();
 }
 function rpGoto(n) {
   const r = RP.r; n = Math.max(0, Math.min(r.acts.length, n));
-  if (n < RP.i) { S = rpFresh(r); RP.i = 0; RECENT = []; }
+  if (n < RP.i) { S = rpFresh(r); RP.i = 0; RECENT = []; SEEN_MASK = []; }
   while (RP.i < n) { act(E.legalActions(S)[r.acts[RP.i]]); RP.i++; }
   sel = { units: [], card: null, info: null, picks: [] }; hover = null; render();
 }
@@ -2769,8 +2788,15 @@ const myAct = () => !RP && S && !S.over && E.actor(S) === YOU && !busy;
 const DOMJA = { calm: '静寂', chaos: '混沌', order: '秩序', fury: '激情', mind: '精神', body: '肉体' };
 const REC_T = ['play', 'hide', 'equip', 'deserter', 'kennen', 'lg', 'lgemp', 'uemp', 'orb', 'akali'];
 let RECENT = [];
+// 公開で見た相手の札のうち、画面では裏向きに戻す札（相手が同じ名前の札を手札から使った時。どの1枚を使ったかは本来わからないため）
+let SEEN_MASK = [];
 // 手を実行する（必ずここを通す）。カードを出した手などは RECENT に残す
 function act(a) {
+  // 相手が手札から札を出した：同じ名前の「公開」札を1枚裏向きに戻す（出したのが公開札そのものなら何もしない）
+  let usedKey = null, usedSeen = false, rk0 = S.reveal ? revealKey(S.reveal) : null;
+  if (!RP && E.actor(S) === FOE && (a.t === 'play' || a.t === 'hide') && S.cards[a.uid] && S.cards[a.uid].zone === 'hand') {
+    usedKey = S.cards[a.uid].key; usedSeen = (S.players[YOU].seen || []).includes(a.uid) && !SEEN_MASK.includes(a.uid);
+  }
   if (GREC && !RP && !NP && !GREC.done) { const i = recIndex(a); if (i >= 0) GREC.acts.push(i); else GREC.bad = true; }
   const p = E.actor(S); let item = null, snap = null;
   if (REC_T.includes(a.t)) {
@@ -2780,6 +2806,12 @@ function act(a) {
     snap = S.players[p].runes.map(x => ({ x, ex: x.ex })); item.pool0 = S.players[p].pool || 0;
   }
   E.apply(S, a);
+  if (S.reveal && revealKey(S.reveal) !== rk0) SEEN_MASK = []; // 新しく公開された：今の手札は全部わかっている
+  if (usedKey && !usedSeen) {
+    const seen = S.players[YOU].seen || [];
+    const u = S.players[FOE].hand.find(x => seen.includes(x) && !SEEN_MASK.includes(x) && S.cards[x].key === usedKey);
+    if (u) SEEN_MASK.push(u);
+  }
   if (item) {
     const now = S.players[p].runes;
     item.rec = snap.filter(o => !now.includes(o.x)).map(o => o.x.dom);
@@ -2924,8 +2956,9 @@ function netBegin(m) {
   GREC = null;
   Object.assign(NP, { game: true, seed: m.seed, first: m.first, decks: m.decks, names: m.names, acts: [] });
   setSeat(NP.role === 'host' ? 0 : 1);
-  S = E.newGame([DECKS[m.decks[0]], DECKS[m.decks[1]]], m.seed, { first: m.first, names: m.names }); RECENT = [];
+  S = E.newGame([DECKS[m.decks[0]], DECKS[m.decks[1]]], m.seed, { first: m.first, names: m.names }); RECENT = []; SEEN_MASK = [];
   for (const i of m.acts || []) { NP.acts.push(i); act(E.legalActions(S)[i]); } // 再接続：ここまでの手を流す
+  revealShown = (m.acts || []).length ? revealKey(S.reveal) : null;
   sel = { units: [], card: null, info: null, picks: [] }; mullSel = []; view = 'game'; overlay = null; recorded = true;
   render(); tick();
 }
@@ -2944,7 +2977,7 @@ function netLeave() {
   try { NP.conn && NP.conn.close(); } catch (e) {}
   try { NP.peer && NP.peer.destroy(); } catch (e) {}
   const wasGame = NP.game; NP = null; setSeat(0);
-  if (wasGame) { S = null; RECENT = []; }
+  if (wasGame) { S = null; RECENT = []; SEEN_MASK = []; }
 }
 function netbarHTML() {
   if (!NP || !NP.game) return '';
@@ -3012,7 +3045,7 @@ function newGame() {
   const mine = DECKS[cfg.deck], theirs = DECKS[fk];
   // 先攻もここで決めて記録する（同じ種・先攻・手順で、あとから試合を再現できるように）
   const seed = (Math.random() * 1e9) | 0, first = Math.random() < 0.5 ? 0 : 1, names = ['あなた', 'AI'];
-  S = E.newGame([mine, theirs], seed, { first, names }); RECENT = [];
+  S = E.newGame([mine, theirs], seed, { first, names }); RECENT = []; SEEN_MASK = [];
   GREC = { decks: [cfg.deck, fk], seed, first, names, acts: [], winner: -1, turns: 0, human: YOU, opp: cfg.level, date: new Date().toISOString() };
   sel = { units: [], card: null, info: null, picks: [] }; mullSel = []; humanRec = []; view = 'game'; overlay = null; recorded = false;
   store.set('rift-cfg', cfg); save(); render(); tick();
@@ -3092,6 +3125,7 @@ function render() {
     </aside></div>
     ${!RP && S.choice && S.choice.p === YOU && S.choice.kind === 'mull' ? mullHTML() : ''}
     ${cardChoiceHTML(A)}
+    ${cardChoiceHTML(A) ? '' : revealHTML()}
     ${!RP && S.over ? overHTML() : ''}
     ${overlay === 'trash0' || overlay === 'trash1' ? trashHTML(+overlay.slice(5), A) : ''}
     ${overlay === 'lab' ? labHTML() : ''}
@@ -3126,7 +3160,8 @@ function pbarHTML(p) {
   }).join('');
   const ready = pl.runes.filter(r => !r.ex).length;
   const deckLeft = doms.map(dm => `${DOMJA[dm] || dm}${pl.runeDeck.filter(x => x === dm).length}`).join('・');
-  const hand = p === FOE && !RP ? `<div class="backs" title="手札 ${pl.hand.length}枚">${Array.from({ length: pl.hand.length }, () => '<span class="back"></span>').join('')}</div>` : '';
+  const seenSet = new Set((S.players[YOU].seen || []).filter(u => !SEEN_MASK.includes(u)));
+  const hand = p === FOE && !RP ? `<div class="backs" title="手札 ${pl.hand.length}枚">${pl.hand.map(u => seenSet.has(u) ? `<span class="back seen cimg" ${bg(S.cards[u].key)} data-zkey="${S.cards[u].key}" title="公開済み：${esc(D(u).name)}"></span>` : '<span class="back"></span>').join('')}</div>` : '';
   const champ = pl.champ.length ? `<button class="zbtn" data-info="${pl.champ[0]}">チャンピオン待機：${esc(D(pl.champ[0]).name)}</button>` : 'チャンピオンは場か手札';
   return `<div class="pbar ${p === YOU ? 'you' : 'foe'}">
     <div class="lgimg ${pl.legend.emp ? 'emp' : ''}" style="background-image:url('${IMG(pl.legend.key)}')" data-legend="${p}" data-zkey="${pl.legend.key}" title="${esc(lg.name)}"></div>
@@ -3161,7 +3196,9 @@ function bfHTML(b) {
   const tag = bf.ctrl === YOU ? `<span class="ctag you">${esc(NM(YOU))}が支配</span>` : bf.ctrl === FOE ? `<span class="ctag foe">${esc(NM(FOE))}が支配</span>` : '<span class="ctag">中立</span>';
   const hid = (p) => bf.hidden.filter(h => S.cards[h].owner === p).map(h => p === YOU || RP
     ? `<div class="hid cimg mine ${tcls('u:' + h)}" ${bg(S.cards[h].key)} data-hidden="${h}" data-hov="${h}" data-zkey="${S.cards[h].key}" title="伏せ：${esc(D(h).name)}"><span class="lbl2">伏せ札</span></div>`
-    : `<div class="hid back" style="margin:0" title="${esc(NM(FOE))}の伏せ札"></div>`).join('');
+    : S.players[YOU].peek === S.turnNo
+      ? `<div class="hid cimg peek ${tcls('u:' + h)}" ${bg(S.cards[h].key)} data-zkey="${S.cards[h].key}" title="${esc(NM(FOE))}の伏せ札（このターンは見えています）：${esc(D(h).name)}"><span class="lbl2">相手の伏せ札</span></div>`
+      : `<div class="hid back" style="margin:0" title="${esc(NM(FOE))}の伏せ札"></div>`).join('');
   const mf = E.unitsAt(S, b, FOE).reduce((t, u) => t + E.might(S, u), 0), my = E.unitsAt(S, b, YOU).reduce((t, u) => t + E.might(S, u), 0);
   const sc = [YOU, FOE].filter(p => S.active === p && S.players[p].scored[b]).length ? 'このターン得点済み' : (S.sd && S.sd.bf === b ? (S.sd.combat ? '⚔ 戦闘中' : 'ショーダウン中') : '');
   return `<section class="bf ${cls} ${S.sd && S.sd.bf === b ? 'sd' : ''} ${TG.has('loc:' + b) ? 'tgtloc' : ''}" data-loc="${b}">
@@ -3206,7 +3243,8 @@ function legendDetail(p) { const pl = S.players[p], d = CARDS[pl.legend.key]; re
 function actsHTML(A) {
   if (S.over) return `<div class="row"><button class="primary" data-k="again">もう一度</button></div>`;
   if (!myAct()) return `<div class="hint">${E.actor(S) === FOE ? (NP ? esc(NM(FOE)) + 'が考えています…' : 'AIが行動中です…') : '…'}</div><div class="row"><button class="primary" disabled>${NP ? esc(NM(FOE)) : 'AI'}の番</button></div>`;
-  const btns = (list) => list.length ? `<div class="acts">${list.map(a => `<button class="act" data-act="${A.indexOf(a)}">${esc(E.describe(S, a))}</button>`).join('')}</div>` : '';
+  const barOn = !!pickBarHTML(A);
+  const btns = (list) => !list.length ? '' : barOn ? '<div class="barnote">← 盤面の上の<b>金色の枠</b>から選んでください（水色に光っている所をクリックしても選べます）</div>' : `<div class="acts">${list.map(a => `<button class="act" data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>`;
   if (S.choice && S.choice.p === YOU) {
     if (S.choice.kind === 'mull') return '<div class="hint">マリガンを選んでください</div>';
     const clr = sel.picks.length ? `<div class="row"><button class="secondary" data-k="clear">選び直す</button></div>` : '';
@@ -3217,8 +3255,45 @@ function actsHTML(A) {
   const cands = pickCands(list);
   const passA = A.find(a => a.t === 'pass' || a.t === 'end');
   const clr = (sel.units.length || sel.card || sel.info || sel.picks.length) ? `<button class="secondary" data-k="clear">選択解除</button>` : '';
-  return head + tgtHint() + btns(cands) + `<div class="row">${clr}${passA ? `<button class="primary" data-act="${A.indexOf(passA)}">${passA.t === 'end' ? 'ターン終了<small style="font-weight:500;opacity:.7;margin-left:6px">（スペースキー）</small>' : 'パス'}</button>` : ''}</div>`;
+  return head + (barOn ? "" : tgtHint()) + btns(cands) + `<div class="row">${clr}${passA ? `<button class="primary" data-act="${A.indexOf(passA)}">${passA.t === 'end' ? 'ターン終了<small style="font-weight:500;opacity:.7;margin-left:6px">（スペースキー）</small>' : 'パス'}</button>` : ''}</div>`;
 }
+// ---- 手札の公開（Scuttle Crab など）のお知らせ：同じ公開は1回だけ出す ----
+let revealShown = null;
+const revealKey = (rv) => rv ? rv.turn + ':' + rv.to + ':' + rv.cards.join(',') : null;
+function revealHTML() {
+  const rv = S && S.reveal;
+  if (RP || !rv || revealKey(rv) === revealShown || overlay) return '';
+  if (S.choice && S.choice.p === YOU && S.choice.kind === 'mull') return '';
+  const mine = rv.to === YOU;
+  const cards = rv.cards.length ? rv.cards.map(k => `<div class="cc cimg" ${bg(k)} data-zkey="${k}" title="${esc(CARDS[k].name)}"></div>`).join('') : '<p>手札は0枚でした。</p>';
+  return `<div class="ov"><div class="panel" style="width:min(980px,100%)"><h2 style="font-size:22px">${mine ? esc(NM(FOE)) + 'の手札が公開されました' : esc(NM(FOE)) + 'にあなたの手札を見られました'}</h2>
+    <p>${mine ? 'Scuttle Crab の効果です。公開された札は、このあと相手の手札の欄に「公開」の印つきで表向きに出ます。このターンは相手の伏せ札も見られます。' : 'Scuttle Crab の効果で、あなたの手札（下の札）が相手に公開されました。'}マウスを乗せると拡大します。</p>
+    <div class="ccrow">${cards}</div>
+    <div class="row" style="margin-top:8px"><button class="primary" data-k="revealok">確認した</button></div></div></div>`;
+}
+
+// ---- 選択肢の文：「何をするか」と「コスト」を分けて、ふつうの日本語にする ----
+function actLabel(a) {
+  const d = E.describe(S, a);
+  const nmOf = (u) => S.cards[u] ? D(u).name : '?';
+  if (a.t === 'play' && S.cards[a.uid]) {
+    const m = d.match(/\s+(\d+)E(?:\+(\d+)P)?$/), c = CARDS[S.cards[a.uid].key];
+    let main = c.type === 'unit' ? `${c.name}を${E.locName(S, a.dest)}に出す` : c.type === 'gear' ? (a.att ? `${c.name}を出して${nmOf(a.att)}に装備` : `${c.name}を出す`) : `${c.name}を唱える`;
+    if (a.tg && a.tg.length) main += `（対象：${a.tg.map(nmOf).join('、')}）`;
+    if (a.opt && a.opt.to !== undefined) main += `（移動先：${E.locName(S, a.opt.to)}）`;
+    const from = { champ: 'チャンピオン：', hidden: '伏せ札から：', trash: '捨て札から：' }[a.zone] || '';
+    const flags = [];
+    if (a.accel) flags.push('加速（レディで出る）'); if (a.extra) flags.push('追加コストを払う'); if (a.repeat) flags.push('リピート');
+    if (a.opt && a.opt.mode === 'gear') flags.push('ギアを破壊'); if (a.opt && a.opt.showoff) flags.push('ギアを見せる');
+    const cost = m ? ((+m[1] || +m[2]) ? 'コスト：' + [+m[1] ? `エネルギー${m[1]}` : '', m[2] ? `パワー${m[2]}` : ''].filter(Boolean).join('＋') : 'コストなし') : '';
+    return { main: from + main, sub: [cost, ...flags].filter(Boolean).join('・') };
+  }
+  if (a.t === 'move') return { main: d.replace(' → ', 'を') + 'へ移動', sub: '' };
+  if (a.t === 'hide') return { main: d.replace(/（任意1）$/, ''), sub: 'コスト：パワー1（どの色でも）' };
+  return { main: d, sub: '' };
+}
+const actBtnInner = (a) => { const l = actLabel(a); return `<span class="am">${esc(l.main)}</span>${l.sub ? `<small class="as">${esc(l.sub)}</small>` : ''}`; };
+
 // ---- 選択肢の帯・カードを見て選ぶ画面 ----
 // カードを見て選ぶ種類（盤面ではなく、山札や手札のカードを選ぶもの）
 const CARD_CHOICE = ['look', 'predict', 'sabotage', 'discard'];
@@ -3227,7 +3302,7 @@ const optCard = (o) => o.uid !== undefined ? o.uid : o.draw !== undefined ? o.dr
 function isCardChoice() { return !RP && S && S.choice && S.choice.p === YOU && CARD_CHOICE.includes(S.choice.kind) && myAct(); }
 function pickBarHTML(A) {
   if (RP || !myAct() || overlay || S.over) return '';
-  const btns = (list) => list.length ? `<div class="pbtns">${list.map(a => `<button data-act="${A.indexOf(a)}">${esc(E.describe(S, a))}</button>`).join('')}</div>` : '';
+  const btns = (list) => list.length ? `<div class="pbtns">${list.map(a => `<button data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>` : '';
   const bar = (tag, head, body, foot) => `<div class="pickbar ${barBottom ? 'bottom' : ''}" data-stop="1"><div class="ph"><span class="tag">${tag}</span><b>${head}</b><button data-k="barpos">${barBottom ? '↑ 上へ' : '↓ 下へ'}</button></div>${body}${foot ? `<div class="pfoot">${foot}</div>` : ''}</div>`;
   if (S.choice && S.choice.p === YOU) {
     if (S.choice.kind === 'mull') return '';
@@ -3329,7 +3404,7 @@ function ctxList(A) {
   } else {
     if (S.chain.length) head = `<b>${esc(D(chainTop()).name)}への対応</b><div class="hint">リアクションを使うなら手札をクリック。使わないならパス。</div>`;
     else if (S.sd) head = `<div class="hint">ショーダウン中。アクション／リアクションを使うかパス。両者が続けてパスすると${S.sd.combat ? '戦闘ダメージ' : '解決'}に進みます。</div>`;
-    else head = `<div class="hint">手札をクリックして出す／自分のユニットをクリックして移動。光っているカードが今使えます。選ぶと、出せる場所・移動先・対象が水色に光るので、それをクリックします。</div>`;
+    else head = `<div class="hint">① 金色に光っている手札をクリック → 出し方を選ぶ<br>② 自分のユニットをクリック → 移動先を選ぶ</div>`;
     list = A.filter(a => ['kennen', 'lg', 'lgemp', 'uemp', 'akali'].includes(a.t) || (a.t === 'play' && ['trash', 'hidden', 'champ'].includes(S.cards[a.uid].zone)));
   }
   return { head, list };
@@ -3473,7 +3548,7 @@ function bindSetup() {
   const st = app.querySelector('[data-k="start"]'); if (st) st.onclick = newGame;
   const ex = app.querySelector('.setup [data-k="export"]'); if (ex) ex.onclick = exportRecords;
   const nb = app.querySelector('.setup [data-k="net"]'); if (nb) nb.onclick = () => { overlay = 'net'; render(); };
-  const rs = app.querySelector('[data-k="resume"]'); if (rs) rs.onclick = () => { const g = store.get('rift-game', null); if (g) { if (NP) netLeave(); setSeat(0); S = g.S; humanRec = g.humanRec || []; GREC = g.GREC || null; view = 'game'; recorded = false; RECENT = []; render(); tick(); } };
+  const rs = app.querySelector('[data-k="resume"]'); if (rs) rs.onclick = () => { const g = store.get('rift-game', null); if (g) { if (NP) netLeave(); setSeat(0); S = g.S; humanRec = g.humanRec || []; GREC = g.GREC || null; view = 'game'; recorded = false; RECENT = []; SEEN_MASK = []; render(); tick(); } };
   const lb = app.querySelector('.setup [data-k="lab"]'); if (lb) lb.onclick = () => { overlay = 'lab'; render(); };
   app.querySelectorAll('[data-rp]').forEach(b => b.onclick = () => rpOpen(REPLAYS[+b.dataset.rp]));
 }
@@ -3492,6 +3567,7 @@ function bind(A) {
     if (k === 'clear') { sel = { units: [], card: null, info: null, picks: [] }; render(); return; }
     if (k === 'barpos') { barBottom = !barBottom; render(); return; }
     if (k === 'cchide') { ccHidden = true; render(); return; }
+    if (k === 'revealok') { revealShown = revealKey(S.reveal); render(); return; }
     if (k === 'ccshow') { ccHidden = false; render(); return; }
     if (k === 'mullok') { const key = mullSel.slice().sort().join(','); const i = S.choice.opts.findIndex(o => o.ids.slice().sort().join(',') === key); mullSel = []; doAction({ t: 'ch', i: Math.max(0, i) }); return; }
   }; });
