@@ -35,7 +35,7 @@ body { background: var(--mat); color: var(--ink); font-family: var(--f-body); fo
 button { font: inherit; color: inherit; }
 button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
 
-.app { display: grid; grid-template-columns: minmax(0, 1fr) 370px; height: 100%; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 320px; height: 100%; }
 .board { --s: 1; position: relative; overflow: hidden; padding: 8px 18px 8px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .side { border-left: 1px solid var(--line); background: var(--mat-2); display: flex; flex-direction: column; min-height: 0; }
 @media (max-width: 960px) { .app { grid-template-columns: 1fr; height: auto; } .side { border-left: 0; border-top: 1px solid var(--line); } .board { overflow: visible; --s: 1 !important; } .handrow { flex-wrap: wrap; } }
@@ -638,7 +638,7 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .app.sideclosed header.top { padding-right: 84px; }
 /* 右の欄：カードは大きく、大きさは固定（何も乗せていない時も同じ枠） */
 .side.sv-c .detail { grid-template-columns: 1fr; justify-items: center; gap: 8px; flex: 1 1 auto; min-height: 0; overflow: hidden; align-content: start; }
-.side.sv-c .detail .big, .side.sv-c .detail .big.land { width: 260px; height: 363px; border: 0; border-radius: 12px; box-shadow: none; background-size: contain; background-repeat: no-repeat; background-position: center; filter: drop-shadow(0 6px 14px rgba(0,0,0,.6)); flex: none; }
+.side.sv-c .detail .big, .side.sv-c .detail .big.land { width: 240px; height: 335px; border: 0; border-radius: 12px; box-shadow: none; background-size: contain; background-repeat: no-repeat; background-position: center; filter: drop-shadow(0 6px 14px rgba(0,0,0,.6)); flex: none; }
 .side.sv-c .detail .big.empty { display: grid; place-items: center; border: 2px dashed var(--line); border-radius: 14px; filter: none; color: var(--ink-dim); font-size: 12.5px; text-align: center; line-height: 1.6; }
 .side.sv-c .detail > div:not(.big) { width: 100%; }
 .side.sv-c .detail .ja { font-size: 13.5px; }
@@ -671,6 +671,20 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .planned.moving { cursor: grabbing; opacity: .9; box-shadow: 0 0 0 4px rgba(255,162,58,.3), 0 24px 50px rgba(0,0,0,.8); animation: none; }
 .planned button, .planned .tog { cursor: pointer; }
 .planned::before { content: "⋮⋮"; position: absolute; left: 50%; top: 1px; transform: translateX(-50%); font-size: 10px; letter-spacing: -1px; color: rgba(255,162,58,.7); pointer-events: none; }
+/* 装備の払い方のボタン */
+.plask { font-size: 11.5px; color: #ffd6a3; }
+.paychips { display: flex; flex-wrap: wrap; gap: 6px; }
+.paychips button { display: flex; align-items: center; gap: 6px; background: rgba(160,122,217,.14); border: 1px solid rgba(160,122,217,.6); border-radius: 9px; padding: 4px 10px 4px 5px; color: var(--ink); font-size: 12.5px; cursor: pointer; }
+.paychips button:hover { background: rgba(160,122,217,.32); }
+.pcico { width: 20px; height: 20px; background-size: contain; background-repeat: no-repeat; background-position: center; display: inline-grid; place-items: center; }
+.pcico.any { color: #c9d4de; font-size: 15px; }
+.pcimg { width: 22px; height: 31px; border-radius: 3px; border: 1px solid #000; flex: none; }
+/* 払い方：どの色でもよいパワー＝使う色のアイコンを並べる */
+.pcany { display: inline-flex; gap: 1px; }
+.pcany .pcico { width: 16px; height: 16px; }
+/* タップする予定のユニット：横向きに倒して見せる */
+.unit.exprev { transform: rotate(-9deg) scale(.96) !important; filter: grayscale(.55) brightness(.72) !important; transition: transform .25s ease; outline: 3px dashed #ffa23a; outline-offset: 3px; z-index: 7; }
+.unit.exprev::before { content: "タップ" !important; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(9deg) !important; background: #ffa23a; color: #2a1404; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; z-index: 9; width: auto !important; height: auto !important; }
 /* リプレイ */
 .handrow.mini { flex: none; min-height: 0; padding: 4px 4px 4px; gap: 6px; }
 .handrow.mini > .card { width: calc(64px * var(--s)); height: calc(90px * var(--s)); border-radius: 6px; cursor: default; }
@@ -3273,6 +3287,9 @@ function nextToast() {
 // 支払いの見込み：このカードを出したら、どのルーンがタップされ／山札に戻るか（盤面のコピーで試す）
 function payPreview(uid, A) {
   const own = A.filter(x => (x.t === 'play' || x.t === 'hide') && x.uid === uid), a = (sel.card === uid ? togFilter(own) : own).find(x => x.t === 'play') || A.find(x => x.t === 'play' && x.uid === uid); if (!a) return null;
+  return payPreviewAct(a);
+}
+function payPreviewAct(a) {
   try {
     const t = E.clone(S), rs = t.players[YOU].runes.slice(), ex0 = rs.map(x => x.ex), p0 = t.players[YOU].pool || 0;
     E.apply(t, a);
@@ -3730,6 +3747,16 @@ function togHTML(A) {
   return `<div class="togs">${shown.map(([k, label]) => `<button class="tog ${t[k] ? 'on' : ''}" data-tog="${k}"><span class="sw"></span>${label}</button>`).join('')}</div>`;
 }
 // 対象を2つ以上選ぶ手：何個目まで選べたかを枠で見せる（① 選んだ物 ✓ ／ ② ？）
+// 装備の払い方を、絵と短い言葉で（パワー1／ユニットをタップ など）
+function payChip(a) {
+  const myDoms = [...new Set([...S.players[YOU].runes.map(x => x.dom), ...S.players[YOU].runeDeck])];
+  const anyIco = `<span class="pcico" style="background-image:url('img/ic_rune.webp')" title="どの色のルーンでもよい"></span>`; // 公式の「どの色でもよいルーン」のマーク
+  if (a.via === "rune") return `${anyIco}パワー1`;
+  if (a.via === "rites") return `<span class="pcico" style="background-image:url('img/dom_chaos.webp')"></span>＋捨て札2`;
+  if (a.via === "pw") { const c = CARDS[S.cards[a.g].key].eqc || {}; const dm = (c.pd || [])[0]; return `${dm ? `<span class="pcico" style="background-image:url('img/dom_${dm}.webp')"></span>` : anyIco}パワー${c.p || 1}`; }
+  if (S.cards[a.via]) return `<span class="pcimg cimg" ${bg(S.cards[a.via].key)}></span><span class="pcico" style="background-image:url('img/ic_tap.webp')" title="タップ（エグゾースト）"></span>${esc(D(a.via).name.split(",")[0])}`;
+  return esc(E.describe(S, a));
+}
 function slotsHTML(cands) {
   if (!cands.length) return "";
   const max = Math.max(...cands.map(a => tKeys(a).length)); if (max < 2) return "";
@@ -3759,6 +3786,7 @@ function plannedHTML(A) {
   else if (!cands.length) hint = 'この組み合わせでは出せません';
   // 対象が要らない手は「▶ 出す」1つ（または盤面にドラッグ）。同じ対象で出し方がまだ複数ある時（まれ）だけ小さなボタン
   if (!more && done.length === 1) btns = `<button class="plgo" data-act="${A.indexOf(done[0])}">▶ ${sel.units.length ? '実行' : sel.leg ? '使う' : '出す'}</button>`;
+  else if (!more && done.length > 1 && done.every(a => a.t === 'equip')) btns = `<div class="plask">払い方</div><div class="paychips">${done.map(a => `<button data-act="${A.indexOf(a)}" data-paychip="1">${payChip(a)}</button>`).join('')}</div>`;
   else if (!more && done.length > 1) btns = `<div class="plbtns">${done.map(a => `<button data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>`;
   else if (more && done.length) btns = `<div class="plbtns">${done.map(a => `<button data-act="${A.indexOf(a)}">${actBtnInner(a)}</button>`).join('')}</div>`;
   const pp = sel.card ? payPreview(sel.card, A) : null;
@@ -4034,7 +4062,8 @@ function placePlanned() {
   const br = b.getBoundingClientRect(), w = p.offsetWidth, hh = p.offsetHeight, m = 10;
   const tg = [...b.querySelectorAll(".tgt, .picked, .unit.sel"), ...document.querySelectorAll(".logbtn, .sideclose, .sideopen")].map(e => e.getBoundingClientRect());
   const hand = b.querySelector(".handrow"), hy = hand ? hand.getBoundingClientRect().top - br.top : br.height;
-  const spots = [[m, m], [br.width - w - m, m], [m, (br.height - hh) / 2], [br.width - w - m, (br.height - hh) / 2], [m, hy - hh - m], [br.width - w - m, hy - hh - m]];
+  const hd = b.querySelector("header.top"), top0 = hd ? hd.getBoundingClientRect().bottom - br.top + 6 : m;
+  const spots = [[br.width - w - m, top0], [m, top0], [br.width - w - m, m], [m, m], [m, (br.height - hh) / 2], [br.width - w - m, (br.height - hh) / 2], [m, hy - hh - m], [br.width - w - m, hy - hh - m]];
   const hit = (x, y) => tg.some(r => r.left - br.left < x + w && r.right - br.left > x && r.top - br.top < y + hh && r.bottom - br.top > y);
   const s = spots.find(([x, y]) => !hit(x, y)) || spots[0];
   p.style.left = Math.max(m, s[0]) + "px"; p.style.top = Math.max(m, s[1]) + "px";
@@ -4315,6 +4344,10 @@ function bind(A) {
   const q = (s) => app.querySelectorAll(s);
   bindTop();
   q('[data-act]').forEach(b => { b.addEventListener('mouseenter', () => hlAct(A[+b.dataset.act])); b.addEventListener('mouseleave', clearHl); });
+  // 払い方のボタン：タップするユニットを横に倒して見せ、ルーンの見込みも出す
+  q('[data-paychip]').forEach(b => { const a = A[+b.dataset.act];
+    b.addEventListener('mouseenter', () => { if (a && S.cards[a.via]) document.querySelectorAll(`.board [data-unit="${a.via}"]`).forEach(el => el.classList.add('exprev')); markPay(payPreviewAct(a)); });
+    b.addEventListener('mouseleave', () => { document.querySelectorAll('.exprev').forEach(el => el.classList.remove('exprev')); markPay(null); }); });
   q('[data-act]').forEach(b => b.onclick = (e) => { e.stopPropagation(); const a = A[+b.dataset.act]; if (a) { hover = null; doAction(a); } });
   q('[data-k]').forEach(b => { if (b.closest('header')) return; b.onclick = (e) => {
     const k = b.dataset.k;
