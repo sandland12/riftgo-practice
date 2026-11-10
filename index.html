@@ -685,6 +685,11 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 /* タップする予定のユニット：横向きに倒して見せる */
 .unit.exprev { transform: rotate(-9deg) scale(.96) !important; filter: grayscale(.55) brightness(.72) !important; transition: transform .25s ease; outline: 3px dashed #ffa23a; outline-offset: 3px; z-index: 7; }
 .unit.exprev::before { content: "タップ" !important; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(9deg) !important; background: #ffa23a; color: #2a1404; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 99px; z-index: 9; width: auto !important; height: auto !important; }
+/* チェーンの行が対象の時 */
+.chrow.tgt { outline: 3px solid #ffa23a; outline-offset: 2px; cursor: pointer; background: rgba(255,162,58,.12); animation: tgtpulse .9s ease-in-out infinite alternate; }
+.chrow.tgt .chimg { box-shadow: 0 0 14px 4px rgba(255,162,58,.8); }
+.chrow.picked { outline: 3px solid var(--gold); background: rgba(217,182,92,.14); }
+.chrow.picked::after, .chrow.picked::before { display: none; }
 /* リプレイ */
 .handrow.mini { flex: none; min-height: 0; padding: 4px 4px 4px; gap: 6px; }
 .handrow.mini > .card { width: calc(64px * var(--s)); height: calc(90px * var(--s)); border-radius: 6px; cursor: default; }
@@ -3275,7 +3280,7 @@ const myAct = () => !RP && S && !S.over && E.actor(S) === YOU && !busy;
 const DOMJA = { calm: '静寂', chaos: '混沌', order: '秩序', fury: '激情', mind: '精神', body: '肉体' };
 const REC_T = ['play', 'hide', 'equip', 'deserter', 'kennen', 'lg', 'lgemp', 'uemp', 'orb', 'akali'];
 let RECENT = [];
-let sideClosed = store.get('rift-sideclosed', false);
+const sideClosed = false; // 右の欄を閉じる機能は使わない（2026/11/10 ユーザーの判断）
 let SIDEVIEW = 'c', RUNEVIEW = 'd'; // 決定：右の欄＝大きいカード＋勝率予想、ルーン＝公式アイコン // 見比べ用：右の欄 a=今 b=大きいカード c=大きいカード＋戦況 ／ ルーン a=今 b=宝石 c=バー
 // 公開で見た相手の札のうち、画面では裏向きに戻す札（相手が同じ名前の札を手札から使った時。どの1枚を使ったかは本来わからないため）
 let SEEN_MASK = [];
@@ -3592,7 +3597,7 @@ function doAction(a) {
   HIDTRASH = [];
   ccSel = null;
   if (NP && NP.game) { if (!netDo(a)) { render(); return; } } else { act(a); recordFeatures(); }
-  sel = { units: [], card: null, info: sel.info && S.cards[sel.info] && S.cards[sel.info].zone === 'board' ? sel.info : null, picks: [] };
+  sel = { units: [], card: null, info: null, picks: [] }; // 手を打ったら選択はすべて解除（装備したギアなどが選ばれたまま残らない）
   if (S.over) onGameOver();
   save(); render(); HIDTRASH.forEach(x => showToast(x)); HIDTRASH = []; tick();
 }
@@ -3643,7 +3648,6 @@ function render() {
     ${sideShut ? '<button class="sideopen" data-k="sideopen" title="右の欄を開く">◀<br>情報</button>' : ''}
     </main>
     <aside class="side sv-${SIDEVIEW} ${PICK ? 'picking' : ''} ${PICK || (S && S.chain.length) ? 'tight' : ''}">
-      <button class="sideclose" data-k="sideclose" title="右の欄を閉じて盤面を広くする">▶ 閉じる</button>
       ${netbarHTML()}
       ${statusHTML()}
       ${chainHTML()}
@@ -4019,16 +4023,16 @@ function chainHTML() {
       // 古い段は1行に縮める。クリックで開く（▸）
       const tgs = (ch.tg || []).filter(u => S.cards[u]);
       const tiny = (u) => `<span class="tiny cimg" ${bg(S.cards[u].key)} data-zkey="${S.cards[u].key}"></span>`;
-      return `<div class="chrow drow mini ${cls}" data-chuid="${ch.uid}" data-chopen="${ch.uid}" title="クリックで詳しく"><div class="chn"><span class="chev">▸</span>${tiny(ch.uid)}<b>${esc(NM(ch.ctrl))}</b>：${esc(D(ch.uid).name)}${tgs.length ? ` <span class="darrow ${cls}" style="padding:0">▶</span> ${tgs.map(u => tiny(u) + esc(D(u).name)).join("、")}` : ""}</div></div>`;
+      return `<div class="chrow drow mini ${cls} ${tcls('u:' + ch.uid)}" data-chuid="${ch.uid}" data-chopen="${ch.uid}" title="クリックで詳しく"><div class="chn"><span class="chev">▸</span>${tiny(ch.uid)}<b>${esc(NM(ch.ctrl))}</b>：${esc(D(ch.uid).name)}${tgs.length ? ` <span class="darrow ${cls}" style="padding:0">▶</span> ${tgs.map(u => tiny(u) + esc(D(u).name)).join("、")}` : ""}</div></div>`;
     }
     if (CHAINVIEW === 'd') {
       const tgi = (ch.tg || []).filter(u => S.cards[u]).map(u => { const z = S.cards[u].zone, c2 = z === 'chain' ? (S.chain.find(c => c.uid === u).ctrl === YOU ? 'y' : 'f') : (S.cards[u].ctrl === YOU ? 'y' : 'f');
         return `<div class="dtg"><div class="chimg cimg ${c2}" ${bg(S.cards[u].key)} data-zkey="${S.cards[u].key}"></div><span>${esc(D(u).name)}<small>${z === 'chain' ? 'チェーン上の呪文' : (S.cards[u].ctrl === YOU ? 'あなた' : esc(NM(FOE))) + 'の' + (z === 'board' ? E.locName(S, S.cards[u].loc) : 'カード')}</small></span></div>`; }).join('');
       const fold = i >= 2 ? `<button class="chfold" data-chopen="${ch.uid}">▾ たたむ</button>` : "";
-      return `<div class="chrow drow ${cls}" data-chuid="${ch.uid}">${fold}<div class="dsrc"><div class="chimg cimg" ${bg(S.cards[ch.uid].key)} data-zkey="${S.cards[ch.uid].key}"></div>
+      return `<div class="chrow drow ${cls} ${tcls('u:' + ch.uid)}" data-chuid="${ch.uid}">${fold}<div class="dsrc"><div class="chimg cimg" ${bg(S.cards[ch.uid].key)} data-zkey="${S.cards[ch.uid].key}"></div>
         <div class="chn">${i === 0 ? '<span class="chtop">次に解決</span>' : ''}<b>${esc(NM(ch.ctrl))}</b>：${esc(D(ch.uid).name)}</div></div>${tgi ? `<div class="darrow ${cls}">▼ 対象</div><div class="dtgs">${tgi}</div>` : ''}</div>`;
     }
-    return `<div class="chrow ${cls}" data-chuid="${ch.uid}"><div class="chimg cimg" ${bg(S.cards[ch.uid].key)} data-zkey="${S.cards[ch.uid].key}"></div>
+    return `<div class="chrow ${cls} ${tcls('u:' + ch.uid)}" data-chuid="${ch.uid}"><div class="chimg cimg" ${bg(S.cards[ch.uid].key)} data-zkey="${S.cards[ch.uid].key}"></div>
       <div><div class="chn">${badges ? `<span class="chb ${cls}">${chainNo(ch.uid)}</span>` : ''}${i === 0 ? '<span class="chtop">次に解決</span>' : ''}<b>${esc(NM(ch.ctrl))}</b>：${esc(D(ch.uid).name)}</div>${tg.length ? `<div class="cht">対象：${tg.join('、')}</div>` : ''}</div></div>`;
   }).join('');
   const sw = `<div class="chsw"><span>見せ方</span>${[['a', 'A 矢印'], ['b', 'B 番号'], ['c', 'C 番号＋矢印'], ['d', 'D カード'], ['e', 'E 暗くする']].map(([k, t]) => `<button data-cv="${k}" class="${CHAINVIEW === k ? 'on' : ''}">${t}</button>`).join('')}</div>`;
@@ -4267,7 +4271,9 @@ function costReason(uid) {
   if (S.active !== YOU && d.timing !== 'reaction') return '相手のターン中はリアクションしか使えません。';
   if (S.sd && d.type !== 'spell') return 'ショーダウン中はユニットやギアを出せません。';
   if (d.type === 'spell' && !d.timing && (S.sd || S.chain.length)) return 'この呪文は自分のメインフェイズにしか唱えられません。';
-  return 'コストが足りないか、対象がいません。';
+  try { const c = E.playCost(S, YOU, uid, { zone: S.cards[uid].zone }); if (!E.canPay(S, YOU, c)) return `ルーンが足りません（エネルギー${c.e || 0}${c.p ? '＋パワー' + c.p : ''}が必要）`; } catch (e) {}
+  if (d.type === 'spell') return `今は対象にできる物がありません（${d.ja}）`;
+  return '今は出せません。';
 }
 function logHTML() {
   const L = S.log.slice(-120);
@@ -4444,7 +4450,6 @@ function bind(A) {
     if (k === 'lab') { overlay = 'lab'; render(); return; }
     if (k === 'export') { exportRecords(); return; }
     if (k === 'clear') { sel = { units: [], card: null, info: null, picks: [] }; cfmKey = null; render(); return; }
-    if (k === 'sideclose' || k === 'sideopen') { sideClosed = k === 'sideclose'; store.set('rift-sideclosed', sideClosed); render(); return; }
     if (k === 'cfmyes') { const key = cfmKey; cfmKey = null; pickTarget(key, true); return; }
     if (k === 'cfmno') { const key = cfmKey; cfmKey = null; const i = sel.picks.lastIndexOf(key); if (i >= 0) sel.picks.splice(i, 1); render(); return; }
     if (k === 'autopass') { autoPassTurn = autoPassTurn === S.turnNo ? null : S.turnNo; render(); tick(); return; }
@@ -4492,6 +4497,7 @@ function bind(A) {
     render();
   });
   q('[data-gear]').forEach(c => c.onclick = (e) => { const g = c.dataset.gear; if (tryPick(e, 'u:' + g)) return; e.stopPropagation(); sel = { units: [], card: null, info: sel.info === g ? null : g, picks: [] }; render(); });
+  q('.chainbox [data-chuid]').forEach(c => c.addEventListener('click', (e) => { tryPick(e, 'u:' + c.dataset.chuid); }));
   q('[data-hidden]').forEach(c => c.onclick = (e) => { if (tryPick(e, 'u:' + c.dataset.hidden)) return; e.stopPropagation(); sel = { units: [], card: null, info: c.dataset.hidden, picks: [] }; render(); });
   q('[data-info]').forEach(c => c.onclick = () => { sel = { units: [], card: null, info: c.dataset.info, picks: [] }; render(); });
   q('[data-trash]').forEach(c => c.onclick = () => { overlay = 'trash' + c.dataset.trash; render(); });
@@ -4595,6 +4601,8 @@ function dropTarget(x, y) {
   if (!el) return null;
   const c = el.closest('[data-unit], [data-gear], [data-hidden], [data-card]');
   if (c) { const k = 'u:' + (c.dataset.unit || c.dataset.gear || c.dataset.hidden || c.dataset.card); if (TG.has(k)) return { key: k, el: c }; }
+  const ch = el.closest('.chainbox [data-chuid]');
+  if (ch && TG.has('u:' + ch.dataset.chuid)) return { key: 'u:' + ch.dataset.chuid, el: ch };
   const l = el.closest('[data-loc]');
   if (l && TG.has('loc:' + l.dataset.loc)) return { key: 'loc:' + l.dataset.loc, el: l };
   return null;
