@@ -1807,7 +1807,7 @@ function step(s, it) {
     case 'rivenBB': {
       const u = it.uid; if (!onBoard(s, u)) return; const c = s.cards[u]; const used = c.modes || [];
       const o = [];
-      if (!used.includes('buff') && !c.buff) o.push({ mode: 'buff' });
+      if (!used.includes('buff')) o.push({ mode: 'buff' }); // すでにバフがあっても選べる（何も起きないが、このターンの「バフを得る」は使ったことになる）
       if (c.buff && !used.includes('stun')) for (const e of enemyUnits(s, p)) o.push({ mode: 'stun', uid: e });
       if (c.buff && !used.includes('ready')) o.push({ mode: 'ready' });
       if (o.length) setChoice(s, p, 'rivenBB', o, { uid: u });
@@ -1917,7 +1917,7 @@ function resolveChoice(s, i) {
       break; }
     case 'rivenBB': {
       const c = s.cards[ch.data.uid]; if (!c || c.zone !== 'board') break; c.modes = c.modes || []; c.modes.push(o.mode);
-      if (o.mode === 'buff') { c.buff = 1; log(s, 'Riven：バフを得た'); }
+      if (o.mode === 'buff') { log(s, c.buff ? 'Riven：バフを得るを選んだ（すでにバフがあるので何も起きない）' : 'Riven：バフを得た'); c.buff = 1; }
       if (o.mode === 'stun') { c.buff = 0; if (onBoard(s, o.uid)) { s.cards[o.uid].stun = 1; log(s, `Riven：${nm(s, o.uid)}をスタン`); } }
       if (o.mode === 'ready') { c.buff = 0; c.ex = false; log(s, 'Riven：自分をレディ'); }
       break; }
@@ -2150,7 +2150,7 @@ function describe(s, a) {
         case 'look': return o.none ? (ch.data.mode === 'lrush' ? '何も取らない' : '何も取らない') : o.noct ? `Nocturneを除外して任意1で出す` : `${n(o.draw)}を手札に`;
         case 'discard': return `${n(o.uid)}を捨てる`;
         case 'disciple': return o.yes ? '山札の上1枚を捨てて+1' : 'しない';
-        case 'rivenBB': return o.mode === 'buff' ? '+1バフを得る' : o.mode === 'ready' ? 'バフを消費して自分をレディ' : `バフを消費して${n(o.uid)}をスタン`;
+        case 'rivenBB': return o.mode === 'buff' ? (s.cards[ch.data.uid] && s.cards[ch.data.uid].buff ? '+1バフを得る（すでにあるので何も起きない）' : '+1バフを得る') : o.mode === 'ready' ? 'バフを消費して自分をレディ' : `バフを消費して${n(o.uid)}をスタン`;
         case 'reckless': return o.mode === 'gold' ? 'ゴールドを出す' : '混沌1を払って1枚引く';
         case 'kflow': return `${n(o.uid)}にフローを付与`;
         case 'tracker': return o.none ? 'しない' : `${o.ids.map(n).join('、')}に1ダメージ`;
