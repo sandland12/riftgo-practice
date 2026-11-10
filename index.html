@@ -1162,7 +1162,7 @@ function dealDmg(s, u, n, byEffect) {
   if (byEffect && c.loc !== 'base' && s.bfs[c.loc].key === 'voidgate') n += 1;
   c.dmg = (c.dmg || 0) + n;
   log(s, `${nm(s, u)}に${n}ダメージ`);
-  if (c.dmg > 0 && c.dmg >= might(s, u) || s.decree === s.turnNo) killUnit(s, u); // Might0のユニットは0ダメージでは死なない
+  if (c.dmg > 0 && c.dmg >= might(s, u) || n > 0 && s.decree === s.turnNo) killUnit(s, u); // Might0のユニットは0ダメージでは死なない。Decree中も0ダメージは「ダメージを受けた」にならない
 }
 function debuff(s, u, n) { // "-n, to a minimum of 1"：今のMightから実際に下がる量を確定して記録（ルール455）
   if (!onBoard(s, u)) return;
@@ -2854,10 +2854,16 @@ if (isNode) module.exports = api; else root.Encode = api;
 //   const P = Policy.load(json)  … weights/policy.json（py/export_js.py が作る）を読み込む
 //   P.choose(s)  → { action, value, probs } … 今の手番の人として一番点の高い手を選ぶ（探索なし）
 //   P.evaluate(s) → { logits, value, enc }
+//   P.search(s, {K,D,pmin,cap}) → { action, value, changed, evals } … ターン内の先読み（search_actor.js と同じ手順）：
+//       直感の上位K個を候補にし、相手の見えない札を入れ替えた世界（D通り）でそれぞれ打ってみて、そのターンの終わりまで両者とも直感の一番手で進め、
+//       次のターンの最初の勝率予想が一番高い手を選ぶ
+//   P.cands(s, opt) → { legal:[候補の合法手の番号…], value } ／ P.leaf(s, 合法手の番号, 入れ替えの番号, opt) → 先の勝率予想
+//       （ページでは候補×入れ替えの計算を複数の Worker に分けて速くする。search はこの2つを順番に呼ぶだけ）
 // 計算は1局面ずつ（詰め物なし）。PyTorchと同じ式：TransformerEncoderLayer(norm_first, GELU) ×4 → 手ごとに盤面を見直す注意 → 点数
 (function (root) {
 const isNode = typeof module !== 'undefined';
 const EN = isNode ? require('./encode.js') : root.Encode;
+const E = isNode ? require('./engine.js') : root.Engine;
 
 function b64ToF32(b64) {
   let bytes;
@@ -2866,15 +2872,40 @@ function b64ToF32(b64) {
   return new Float32Array(bytes.buffer);
 }
 
+// ---- 速い計算部品（WebAssembly SIMD：4個ずつまとめて掛けて足す。素のJSの約10倍速い）。作り方は tools/mk_kernel.js ----
+// 使えないブラウザでは KN が null のままで、下の素のJSの計算に自動で戻る。重みと途中の計算は部品のメモリ（32MB）の中に置く
+const KERNEL_B64 = 'AGFzbQEAAAABDgFgCn9/f39/f39/f38AAwIBAAUEAQCABAcLAgNtZW0CAAFrAAAKkwMBkAMDCX8BfQJ7IANBAnQhECAQQWBxIREgEEFwcSESAkADQCAKIAJPDQEgACAKIAFsQQJ0aiENIAggCiAJbEECdGohD0EAIQsCQANAIAsgB08NASAEIAsgBWxBAnRqIQ79DAAAAAAAAAAAAAAAAAAAAAAhFP0MAAAAAAAAAAAAAAAAAAAAACEVQQAhDAJAA0AgDCARTw0BIBQgDSAMav0AAgAgDiAMav0AAgD95gH95AEhFCAVIA0gDGr9AAIQIA4gDGr9AAIQ/eYB/eQBIRUgDEEgaiEMDAALCwJAA0AgDCASTw0BIBQgDSAMav0AAgAgDiAMav0AAgD95gH95AEhFCAMQRBqIQwMAAsLIBQgFf3kASEUIBT9HwAgFP0fAZIgFP0fApIgFP0fA5IhEwJAA0AgDCAQTw0BIBMgDSAMaioCACAOIAxqKgIAlJIhEyAMQQRqIQwMAAsLIAYEQCATIAYgC0ECdGoqAgCSIRMLIA8gC0ECdGogEzgCACALQQFqIQsMAAsLIApBAWohCgwACwsL';
+let KN = null;
+try {
+  let u8; if (typeof Buffer !== 'undefined') u8 = new Uint8Array(Buffer.from(KERNEL_B64, 'base64')); else { const t = atob(KERNEL_B64); u8 = new Uint8Array(t.length); for (let i = 0; i < t.length; i++) u8[i] = t.charCodeAt(i); }
+  const ins = new WebAssembly.Instance(new WebAssembly.Module(u8));
+  KN = { k: ins.exports.k, buf: ins.exports.mem.buffer, stat: 64, top: 64 };
+} catch (e) { KN = null; }
+function kStatic(arr) { // 重みを部品のメモリに移す（入りきらなければそのまま＝素のJSで計算）
+  if (!KN || KN.stat + arr.byteLength > KN.buf.byteLength / 2) return arr;
+  const v = new Float32Array(KN.buf, KN.stat, arr.length); v.set(arr); KN.stat += (arr.byteLength + 15) & ~15; return v;
+}
+function alloc(len) { // 途中の計算の置き場（evaluate のたびに先頭に戻す）
+  if (!KN || KN.top + len * 4 > KN.buf.byteLength) return null;
+  const v = new Float32Array(KN.buf, KN.top, len); KN.top += (len * 4 + 15) & ~15; return v;
+}
+
 // ---- 小さな行列計算（行優先。x は n×inDim、W は PyTorch の Linear と同じ outDim×inDim）----
 function linear(x, n, inDim, W, b, outDim) {
+  if (KN && W.buffer === KN.buf) {
+    let xi = x; if (x.buffer !== KN.buf) { xi = alloc(n * inDim); if (xi) xi.set(x.length === n * inDim ? x : x.subarray(0, n * inDim)); }
+    const yk = xi && alloc(n * outDim);
+    if (yk) { KN.k(xi.byteOffset, inDim, n, inDim, W.byteOffset, inDim, b ? b.byteOffset : 0, outDim, yk.byteOffset, outDim); return yk; }
+  }
   const y = new Float32Array(n * outDim);
   for (let i = 0; i < n; i++) {
     const xo = i * inDim, yo = i * outDim;
     for (let o = 0; o < outDim; o++) {
-      let s = b ? b[o] : 0; const wo = o * inDim;
-      for (let k = 0; k < inDim; k++) s += x[xo + k] * W[wo + k];
-      y[yo + o] = s;
+      // 4本に分けて足す（1本ずつ順に足すより2倍ほど速い）
+      const wo = o * inDim; let s0 = b ? b[o] : 0, s1 = 0, s2 = 0, s3 = 0, k = 0;
+      for (const e = inDim - 3; k < e; k += 4) { s0 += x[xo + k] * W[wo + k]; s1 += x[xo + k + 1] * W[wo + k + 1]; s2 += x[xo + k + 2] * W[wo + k + 2]; s3 += x[xo + k + 3] * W[wo + k + 3]; }
+      for (; k < inDim; k++) s0 += x[xo + k] * W[wo + k];
+      y[yo + o] = s0 + s1 + s2 + s3;
     }
   }
   return y;
@@ -2904,6 +2935,24 @@ function mha(q, nq, kv, nk, d, heads, inW, inB, outW, outB) {
   const hd = d / heads, sc = 1 / Math.sqrt(hd);
   const Wq = inW.subarray(0, d * d), Wk = inW.subarray(d * d, 2 * d * d), Wv = inW.subarray(2 * d * d, 3 * d * d);
   const Q = linear(q, nq, d, Wq, inB.subarray(0, d), d), K = linear(kv, nk, d, Wk, inB.subarray(d, 2 * d), d), V = linear(kv, nk, d, Wv, inB.subarray(2 * d, 3 * d), d);
+  if (KN && Q.buffer === KN.buf && K.buffer === KN.buf && V.buffer === KN.buf) {
+    const S = alloc(nq * nk), vt = alloc(hd * nk), cx = alloc(nq * d);
+    if (cx) {
+      for (let h = 0; h < heads; h++) {
+        const ho = h * hd;
+        KN.k(Q.byteOffset + ho * 4, d, nq, hd, K.byteOffset + ho * 4, d, 0, nk, S.byteOffset, nk);   // 点＝Q·K
+        for (let i = 0; i < nq; i++) {
+          const o = i * nk; let mx = -Infinity, sum = 0;
+          for (let j = 0; j < nk; j++) { const v = S[o + j] * sc; S[o + j] = v; if (v > mx) mx = v; }
+          for (let j = 0; j < nk; j++) { const e = Math.exp(S[o + j] - mx); S[o + j] = e; sum += e; }
+          for (let j = 0; j < nk; j++) S[o + j] /= sum;
+        }
+        for (let k = 0; k < hd; k++) for (let j = 0; j < nk; j++) vt[k * nk + j] = V[j * d + ho + k];
+        KN.k(S.byteOffset, nk, nq, nk, vt.byteOffset, nk, 0, hd, cx.byteOffset + ho * 4, d);          // 重みつきの平均＝P·V
+      }
+      return linear(cx, nq, d, outW, outB, d);
+    }
+  }
   const ctx = new Float32Array(nq * d), w = new Float32Array(nk);
   for (let h = 0; h < heads; h++) {
     const ho = h * hd;
@@ -2919,13 +2968,14 @@ function mha(q, nq, kv, nk, d, heads, inW, inB, outW, outB) {
 
 function load(json) {
   const meta = json.meta, W = {};
-  for (const k in json.w) W[k] = b64ToF32(json.w[k].b64);
+  for (const k in json.w) W[k] = kStatic(b64ToF32(json.w[k].b64));
   const d = meta.d, H = meta.heads, FF = meta.ff, CD = meta.card_dim, TF = meta.TF, AF = meta.AF;
   if (TF !== EN.TF || AF !== EN.AF) throw new Error(`ネットの大きさ（TF${TF} AF${AF}）が encode.js（TF${EN.TF} AF${EN.AF}）と合いません`);
 
   function evaluate(s, enc) {
     const x = enc || EN.encode(s, { withLegal: true });
     const T = x.nTok, A = x.nAct;
+    if (KN) KN.top = KN.stat;
     // トークンの入口：特徴＋カード名のベクトル
     const inp = new Float32Array(T * (TF + CD));
     for (let t = 0; t < T; t++) {
@@ -2958,7 +3008,7 @@ function load(json) {
     for (let i = 0; i < A; i++) { cat.set(a.subarray(i * d, i * d + d), i * 2 * d); cat.set(g, i * 2 * d + d); }
     const logits = linear(gelu(linear(cat, A, 2 * d, W['policy.0.weight'], W['policy.0.bias'], d)), A, d, W['policy.2.weight'], W['policy.2.bias'], 1);
     const v = linear(gelu(linear(g, 1, d, W['value.0.weight'], W['value.0.bias'], d)), 1, d, W['value.2.weight'], W['value.2.bias'], 1);
-    return { logits, value: Math.tanh(v[0]), enc: x };
+    return { logits: logits.slice(), value: Math.tanh(v[0]), enc: x, fast: !!KN };
   }
 
   function choose(s) {
@@ -2967,7 +3017,42 @@ function load(json) {
     const mx = logits[best]; let sum = 0; const probs = Array.from(logits, z => { const e = Math.exp(z - mx); sum += e; return e; }).map(e => e / sum);
     return { action: enc.legal[enc.actIdx[best]], value, probs, best };
   }
-  return { meta, evaluate, choose };
+  const SD = { K: 4, D: 2, pmin: 0.03, cap: 12 };
+  const top = (lg) => { let b = 0; for (let i = 1; i < lg.length; i++) if (lg[i] > lg[b]) b = i; return b; };
+  function cands(s, opt) {
+    const o = Object.assign({}, SD, opt), { logits, value, enc } = evaluate(s);
+    const lg = Array.from(logits), mx = Math.max(...lg), ex = lg.map(z => Math.exp(z - mx)), sm = ex.reduce((x, y) => x + y, 0);
+    const order = lg.map((_, i) => i).sort((x, y) => lg[y] - lg[x]);
+    return { legal: order.slice(0, o.K).filter((i, k) => k === 0 || ex[i] / sm >= o.pmin).map(i => enc.actIdx[i]), value };
+  }
+  // 手（合法手の番号 li）を打った先の勝率予想（今の手番の人から見た -1〜1）。d は入れ替えの番号
+  function leaf(s, li, d, opt) {
+    const o = Object.assign({}, SD, opt), me = E.actor(s), keep = s.seed;
+    s.seed = (keep ^ Math.imul(d + 1, 0x9E3779B1)) | 0;
+    const t = E.determinize(s, me); s.seed = keep;
+    const turn0 = s.turnNo; let n = 0, evals = 0;
+    E.apply(t, E.legalActions(t)[li]);
+    for (let g = 0; g < 400; g++) {
+      if (t.over) return { v: t.over.winner === me ? 1 : t.over.winner === -1 ? 0 : -1, evals };
+      const L = E.legalActions(t);
+      if (L.length === 1) { E.apply(t, L[0]); continue; }
+      const r = evaluate(t); evals++;
+      if (t.turnNo !== turn0 || n >= o.cap) return { v: E.actor(t) === me ? r.value : -r.value, evals };
+      E.apply(t, r.enc.legal[r.enc.actIdx[top(r.logits)]]); n++;
+    }
+    return { v: 0, evals };
+  }
+  function search(s, opt) {
+    const o = Object.assign({}, SD, opt), c = cands(s, o), L = E.legalActions(s);
+    if (c.legal.length < 2) return { action: L[c.legal[0]], value: c.value, changed: false, evals: 1 };
+    let best = 0, bq = -Infinity, evals = 1;
+    c.legal.forEach((li, k) => {
+      let sum = 0; for (let d = 0; d < o.D; d++) { const r = leaf(s, li, d, o); sum += r.v; evals += r.evals; }
+      if (sum / o.D > bq) { bq = sum / o.D; best = k; }
+    });
+    return { action: L[c.legal[best]], value: bq, changed: best !== 0, evals };
+  }
+  return { meta, evaluate, choose, cands, leaf, search };
 }
 
 const api = { load };
@@ -3082,12 +3167,13 @@ const thinker = mkWorker('self.onmessage=function(e){var d=e.data;var o=Object.a
 let pend = null, rid = 0;
 if (thinker) thinker.onmessage = (e) => { if (pend && pend.id === e.data.id) { const f = pend.f; pend = null; f(e.data.a); } };
 // 新AI：方策ネットを Worker で計算する（重みは最初の1回だけ送る）
+// 手を選ぶ時は policy.js の search（ターン内の先読み：候補4つ×相手の見えない札の入れ替え2通り）を使う。勝率予想は evaluate のまま
 let polW = null, polPend = null, polRid = 0, polMain = null, polErr = '';
 function policyJSON() { const el = document.getElementById('policy-w'); const t = el ? el.textContent.trim() : ''; return t && t !== 'null' ? t : null; }
 function ensurePolW() {
   const w = policyJSON(); if (!w) return null;
   if (!polW && polW !== false) {
-    polW = mkWorker('var P=null;self.onmessage=function(e){var d=e.data;try{if(d.t==="load"){P=self.Policy.load(JSON.parse(d.w));return;}if(d.t==="eval"){var ev=P.evaluate(d.s);self.postMessage({t:"ev",id:d.id,v:ev.value});return;}var r=P.choose(d.s);self.postMessage({id:d.id,a:r.action});}catch(err){self.postMessage({t:d.t,id:d.id,err:String(err&&err.message||err)});}};') || false;
+    polW = mkWorker('var P=null;self.onmessage=function(e){var d=e.data;try{if(d.t==="load"){P=self.Policy.load(JSON.parse(d.w));return;}if(d.t==="eval"){var ev=P.evaluate(d.s);self.postMessage({t:"ev",id:d.id,v:ev.value});return;}var r=P.search?P.search(d.s):P.choose(d.s);self.postMessage({id:d.id,a:r.action});}catch(err){self.postMessage({t:d.t,id:d.id,err:String(err&&err.message||err)});}};') || false;
     if (polW) { polW.postMessage({ t: 'load', w }); polW.onmessage = (e) => {
       if (e.data.t === 'ev' || e.data.t === 'eval') { onWinEval(e.data); return; }
       if (!polPend || polPend.id !== e.data.id) return; const p = polPend; polPend = null; if (e.data.err) { polErr = e.data.err; p.fail(); } else p.f(e.data.a); }; }
@@ -3121,7 +3207,7 @@ function policyThink(s, cb) {
   if (!w) { polErr = '新AIの重みがページに入っていません'; return false; }
   ensurePolW();
   if (polW) { const id = ++polRid; polPend = { id, f: cb, fail: () => fallbackThink(s, cb) }; polW.postMessage({ s, id }); return true; }
-  try { if (!polMain) polMain = window.Policy.load(JSON.parse(w)); const a = polMain.choose(s).action; setTimeout(() => cb(a), 20); return true; } catch (e) { polErr = String(e.message || e); return false; }
+  try { if (!polMain) polMain = window.Policy.load(JSON.parse(w)); const a = (polMain.search ? polMain.search(s) : polMain.choose(s)).action; setTimeout(() => cb(a), 20); return true; } catch (e) { polErr = String(e.message || e); return false; }
 }
 function fallbackThink(s, cb) { console.warn('新AIが動かないので学習AIで代わりに考えます：', polErr); const o = { level: 'normal', ms: 900 }; if (NET) o.net = NET; setTimeout(() => cb(AIm.think(s, o).action), 20); }
 function aiThink(s, cb) {
