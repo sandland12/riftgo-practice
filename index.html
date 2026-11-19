@@ -469,7 +469,7 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 .planned .payline { font-size: 11.5px; padding: 4px 7px; }
 /* ドラッグ中のカード */
 .dragghost { position: fixed; z-index: 90; width: 96px; aspect-ratio: 300 / 419; border-radius: 8px; pointer-events: none; transform: translate(-50%, -60%) rotate(-4deg); box-shadow: 0 16px 34px rgba(0,0,0,.7), 0 0 0 2px #ffa23a; opacity: .92; }
-.handrow [data-card], .board [data-unit] { touch-action: none; }
+.handrow [data-card], .lgslot [data-card], .board [data-unit] { touch-action: none; }
 /* 右端の操作レール */
 .rail { border-left: 1px solid var(--line); background: var(--mat); display: grid; grid-template-rows: auto 1fr auto; justify-items: center; padding: 10px 6px; gap: 10px; }
 .railmid { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
@@ -488,6 +488,19 @@ header.top { display: flex; align-items: center; justify-content: space-between;
 /* レジェンド：能力が使える時は光る */
 .lgimg.can { box-shadow: 0 0 0 2px #ffa23a, 0 0 14px rgba(255,162,58,.7); animation: tgtpulse .9s ease-in-out infinite alternate; outline: 2px solid transparent; }
 .lgimg.sel { box-shadow: 0 0 0 3px var(--gold); }
+.lgimg.plain { cursor: default; }
+.zone { flex-wrap: nowrap; }
+.zin { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start; min-width: 0; }
+.lgslot { flex: none; display: flex; gap: 6px; padding: 4px 6px; border: 1px dashed var(--line); border-radius: 10px; background: rgba(255,255,255,.03); align-self: stretch; align-items: center; }
+.lgslot.you { margin-left: auto; } .lgslot.foe { margin-right: 4px; order: -1; }
+.lgc { position: relative; width: calc(66px * var(--s)); height: calc(92px * var(--s)); border-radius: 7px; border: 1px solid #000; cursor: pointer; flex: none; box-shadow: 0 2px 6px rgba(0,0,0,.5); background-size: cover; background-position: center; }
+.lgc.none { border: 1px dashed var(--line); background: none; box-shadow: none; cursor: default; opacity: .4; }
+.lgc.ex { transform: rotate(-9deg) scale(.96); filter: grayscale(.6) brightness(.7); }
+.lgc.can { box-shadow: 0 0 0 2px #ffa23a, 0 0 14px rgba(255,162,58,.7); animation: tgtpulse .9s ease-in-out infinite alternate; }
+.lgc.sel { box-shadow: 0 0 0 3px var(--gold); }
+.lgc.emp::after { content: "EMPOWERED"; position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); background: var(--gold); color: #1b1407; font: 700 8px/1 var(--f-num); padding: 2px 4px; border-radius: 4px; }
+.lgc.card:hover { transform: none; }
+.zone[data-loc="base"] > .ztag { right: calc(132px * var(--s) + 34px); }
 .gear.can { box-shadow: 0 0 0 2px #ffa23a, 0 0 12px rgba(255,162,58,.7); animation: tgtpulse .9s ease-in-out infinite alternate; }
 .gear.can.sel { box-shadow: 0 0 0 3px var(--gold); animation: none; }
 /* ログの引き出し */
@@ -5335,9 +5348,9 @@ function render() {
       <div id="top">${topHTML()}</div>
       ${pbarHTML(FOE)}
       ${RP ? `<div class="handrow mini"><span class="ztag">${esc(NM(FOE))}の手札（${S.players[FOE].hand.length}）</span>${miniHand(FOE)}</div>` : ''}
-      <div class="zone"><span class="ztag">${esc(NM(FOE))}のベース</span>${baseHTML(FOE)}</div>
+      <div class="zone"><span class="ztag">${esc(NM(FOE))}のベース</span>${slotHTML(FOE, A)}<div class="zin">${baseHTML(FOE)}</div></div>
       <div class="bfs">${[0, 1].map(bfHTML).join('')}</div>
-      <div class="zone ${TG.has('loc:base') ? 'tgtloc' : ''}" data-loc="base"><span class="ztag">${esc(NM(YOU))}のベース</span>${baseHTML(YOU)}</div>
+      <div class="zone ${TG.has('loc:base') ? 'tgtloc' : ''}" data-loc="base"><span class="ztag">${esc(NM(YOU))}のベース</span><div class="zin">${baseHTML(YOU)}</div>${slotHTML(YOU, A)}</div>
       ${pbarHTML(YOU)}
       <div class="handrow"><span class="ztag">${RP ? esc(NM(YOU)) + 'の' : ''}手札（${S.players[YOU].hand.length}）・マウスを乗せると拡大</span>${handHTML(A)}</div>
     ${plannedHTML(A)}
@@ -5373,7 +5386,7 @@ function render() {
   if (overlay === 'lab') bindLab();
 }
 function renderTop() { const t = document.getElementById('top'); if (t) t.innerHTML = topHTML(); bindTop(); }
-function miniHand(p) { return S.players[p].champ.map(u => `<div class="card cimg champ" ${bg(S.cards[u].key)} data-hov="${u}" data-zkey="${S.cards[u].key}" title="チャンピオン：${esc(D(u).name)}"><span class="champtag">チャンピオン</span></div>`).join('') + S.players[p].hand.map(u => `<div class="card cimg" ${bg(S.cards[u].key)} data-hov="${u}" data-zkey="${S.cards[u].key}" title="${esc(D(u).name)}"></div>`).join('') || '<span class="empty">手札なし</span>'; }
+function miniHand(p) { return S.players[p].hand.map(u => `<div class="card cimg" ${bg(S.cards[u].key)} data-hov="${u}" data-zkey="${S.cards[u].key}" title="${esc(D(u).name)}"></div>`).join('') || '<span class="empty">手札なし</span>'; }
 function topHTML() {
   if (RP) return `<header class="top"><div class="brand">RIFT SPARRING<small>リプレイ：${esc(rpLabel(RP.r, REPLAYS.indexOf(RP.r)))}</small></div>
     <div class="hbtns"><button class="ghost" data-k="rules">ルールの簡略化</button><button class="ghost" data-k="setup">リプレイを終わる</button></div></header>`;
@@ -5404,9 +5417,9 @@ function pbarHTML(p) {
   const deckLeft = doms.map(dm => `${DOMJA[dm] || dm}${pl.runeDeck.filter(x => x === dm).length}`).join('・');
   const seenSet = new Set((S.players[YOU].seen || []).filter(u => !SEEN_MASK.includes(u)));
   const hand = p === FOE && !RP ? `<div class="backs" title="手札 ${pl.hand.length}枚">${pl.hand.map(u => seenSet.has(u) ? `<span class="back seen cimg" ${bg(S.cards[u].key)} data-zkey="${S.cards[u].key}" title="公開済み：${esc(D(u).name)}"></span>` : '<span class="back"></span>').join('')}</div>` : '';
-  const champ = pl.champ.length ? `<button class="zbtn" data-info="${pl.champ[0]}">チャンピオン待機：${esc(D(pl.champ[0]).name)}</button>` : 'チャンピオンは場か手札';
+  const champ = '';
   return `<div class="pbar ${p === YOU ? 'you' : 'foe'}">
-    <div class="lgimg ${pl.legend.emp ? 'emp' : ''} ${p === YOU && myAct() && !S.choice && legal().some(isLgAct) ? 'can' : ''} ${p === YOU && sel.leg ? 'sel' : ''}" style="background-image:url('${IMG(pl.legend.key)}');background-position:${facePos(pl.legend.key, 1, 1.6)}" data-legend="${p}" data-zkey="${pl.legend.key}" title="${esc(lg.name)}"></div>
+    <div class="lgimg plain" style="background-image:url('${IMG(pl.legend.key)}');background-position:${facePos(pl.legend.key, 1, 1.6)}" title="${esc(lg.name)}"></div>
     <div class="pname"><b>${esc(NM(p))}・${esc(lg.name)}<span class="ord ${S.first === p ? 'first' : ''}">${S.first === p ? '先攻' : '後攻'}</span></b><span>${champ}</span></div>
     <div class="track"><div class="score">${pl.points}<small>/${E.VICTORY}</small></div><div class="pips">${pips}</div>${hand}</div>
     <div class="pmeta"><div class="rgrps">${pl.pool > 0 ? `<span class="rg pool" title="ルーンプールに浮いているエネルギー。このターン中は次のカードに使え、ターン終了時に消えます"><span class="rn">浮いているエネルギー</span><span class="rc">${pl.pool}</span></span>` : ''}${runes || '<span class="rg"><span class="rn">ルーンなし</span></span>'}</div><span>使えるルーン ${ready}/${pl.runes.length}・ルーン山札（${deckLeft}）・山札 ${pl.deck.length}・手札 ${pl.hand.length}・<button class="zbtn" data-trash="${p}">捨て札 ${pl.trash.length}</button></span></div>
@@ -5425,13 +5438,25 @@ function unitHTML(u) {
     <div class="bd">${b.join('')}</div>${eqs ? `<div class="eqs">${eqs}</div>` : ''}<div class="mt ${m > base ? 'up' : m < base ? 'down' : ''}">${m}</div></div>`;
 }
 function gearHTML(g) { const c = S.cards[g]; return `<div class="gear cimg ${c.ex ? 'ex' : ''} ${sel.info === g ? 'sel' : ''} ${gearCan(g) ? 'can' : ''} ${tcls('u:' + g)}" ${bg(c.key)} data-gear="${g}" data-hov="${g}" data-zkey="${c.key}" title="${esc(D(g).name)}"></div>`; }
+function slotHTML(p, A) {
+  const pl = S.players[p], mine = p === YOU && !RP;
+  const lgCan = mine && myAct() && !S.choice && legal().some(isLgAct);
+  const lg = `<div class="lgc cimg ${pl.legend.emp ? 'emp' : ''} ${pl.legend.ex ? 'ex' : ''} ${lgCan ? 'can' : ''} ${mine && sel.leg ? 'sel' : ''}" ${bg(pl.legend.key)} data-legend="${p}" data-zkey="${pl.legend.key}" title="レジェンド：${esc(CARDS[pl.legend.key].name)}"></div>`;
+  const ch = pl.champ.map(u => {
+    if (!mine) return `<div class="lgc cimg champ" ${bg(S.cards[u].key)} data-hov="${u}" data-zkey="${S.cards[u].key}" title="チャンピオン待機：${esc(D(u).name)}"></div>`;
+    const can = A.some(a => a.t === 'play' && a.uid === u);
+    return `<div class="lgc card cimg champ ${can ? 'can' : (myAct() ? 'no' : '')} ${sel.card === u ? 'sel' : ''} ${tcls('u:' + u)}" ${bg(S.cards[u].key)} data-card="${u}" data-hov="${u}" data-zkey="${S.cards[u].key}" tabindex="0" title="チャンピオン待機：${esc(D(u).name)}"></div>`;
+  }).join('') || '<div class="lgc none" title="チャンピオンは場か手札にあります"></div>';
+  return `<div class="lgslot ${p === YOU ? 'you' : 'foe'}">${lg}${ch}</div>`;
+}
 function baseHTML(p) {
-  const h = E.unitsAt(S, 'base', p).map(unitHTML).join('') + E.gearsOf(S, p).filter(g => !S.cards[g].att).map(gearHTML).join('');
+  const h = E.unitsAt(S, 'base', p).map(unitHTML).join('') + E.gearsOf(S, p).filter(g => !S.cards[g].att && S.cards[g].loc === 'base').map(gearHTML).join('');
   return h || '<span class="empty">なし</span>';
 }
 // 対象として光らせるか（render の最初に TG を計算しておく）
 let TG = new Set();
 function tcls(key) { return TG.has(key) ? 'tgt' : sel.picks.includes(key) ? 'picked' : ''; }
+function bfGears(b, p) { return E.gearsOf(S, p).filter(g => !S.cards[g].att && S.cards[g].loc === b).map(gearHTML).join(''); }
 function bfHTML(b) {
   const bf = S.bfs[b], d = CARDS[bf.key];
   const cls = bf.ctrl === YOU ? 'ctrl-you' : bf.ctrl === FOE ? 'ctrl-foe' : '';
@@ -5445,9 +5470,9 @@ function bfHTML(b) {
   const sc = [YOU, FOE].filter(p => S.active === p && S.players[p].scored[b]).length ? 'このターン得点済み' : (S.sd && S.sd.bf === b ? (S.sd.combat ? '⚔ 戦闘中' : 'ショーダウン中') : '');
   return `<section class="bf ${cls} ${S.sd && S.sd.bf === b ? 'sd' : ''} ${TG.has('loc:' + b) ? 'tgtloc' : ''}" data-loc="${b}">
     <div class="bfban" style="background-image:url('${IMG(bf.key)}')" data-bf="${b}" data-zkey="${bf.key}" data-zland="1"><div><div><div class="bfname">${esc(d.name)}</div><div class="bfeff">${esc(d.ja)}</div></div>${tag}</div></div>
-    <div class="bfside">${E.unitsAt(S, b, FOE).map(unitHTML).join('')}${hid(FOE)}</div>
+    <div class="bfside">${E.unitsAt(S, b, FOE).map(unitHTML).join('')}${bfGears(b, FOE)}${hid(FOE)}</div>
     <div class="bfmid"><span class="f">${esc(NM(FOE))} ${mf}</span><span class="c">${sc}</span><span class="y">${my} ${esc(NM(YOU))}</span></div>
-    <div class="bfside">${E.unitsAt(S, b, YOU).map(unitHTML).join('')}${hid(YOU)}</div></section>`;
+    <div class="bfside">${E.unitsAt(S, b, YOU).map(unitHTML).join('')}${bfGears(b, YOU)}${hid(YOU)}</div></section>`;
 }
 function handHTML(A) {
   const mark = S.choice && S.choice.p === YOU && S.choice.kind === 'discard';
@@ -5455,7 +5480,7 @@ function handHTML(A) {
     const can = A.some(a => a.t === 'play' && a.uid === u);
     return `<div class="card cimg champ ${can ? 'can' : (myAct() ? 'no' : '')} ${sel.card === u ? 'sel' : ''} ${tcls('u:' + u)}" ${bg(S.cards[u].key)} data-card="${u}" data-hov="${u}" data-zkey="${S.cards[u].key}" tabindex="0" title="チャンピオン：${esc(D(u).name)}"><span class="champtag">チャンピオン</span></div>`;
   }).join('');
-  return champ + S.players[YOU].hand.map(u => {
+  return S.players[YOU].hand.map(u => {
     const can = A.some(a => (a.t === 'play' || a.t === 'hide') && a.uid === u);
     return `<div class="card cimg ${mark ? 'tgt dsc' : can ? 'can' : (myAct() ? 'no' : '')} ${sel.card === u ? 'sel' : ''} ${mark ? '' : tcls('u:' + u)}" ${bg(S.cards[u].key)} data-card="${u}" data-hov="${u}" data-zkey="${S.cards[u].key}" tabindex="0" title="${esc(D(u).name)}"></div>`;
   }).join('') || '<span class="empty">手札なし</span>';
@@ -6319,7 +6344,7 @@ function cfmHTML() {
 let DRAG = null, dragGhost = null, eatClick = false;
 document.addEventListener('pointerdown', (e) => {
   if (e.button !== 0 || RP || view !== 'game' || !S || !myAct() || S.choice || S.cast) return;
-  const el = e.target.closest && e.target.closest('.handrow [data-card], .board [data-unit], .board [data-hidden], .board .zone [data-gear]');
+  const el = e.target.closest && e.target.closest('.handrow [data-card], .lgslot [data-card], .board [data-unit], .board [data-hidden], .board .zone [data-gear]');
   if (!el) return;
   const id = el.dataset.card || el.dataset.unit || el.dataset.hidden || el.dataset.gear;
   if (!S.cards[id] || (el.dataset.unit && S.cards[id].ctrl !== YOU)) return;
